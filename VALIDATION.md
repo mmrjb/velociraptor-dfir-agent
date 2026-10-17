@@ -28,6 +28,25 @@ One Linux permission test is skipped here because this workspace cannot be impor
 regression handling is retained. No ownership or permissions on shared parent directories
 were changed to force the skipped check to pass.
 
+## Completed in GitHub Actions (2026-10-17)
+
+[Successful CI run](https://github.com/mmrjb/velociraptor-dfir-agent/actions/runs/39016811714)
+for source commit `58df886e7fbfc06fabce1af7892b93bc8cf118a8`, on Ubuntu 24.04 x86_64:
+
+- CPython 3.10, 3.11, 3.12 and 3.13: **148 passed, 2 skipped** on each version; Ruff passed.
+  The Python jobs lack built UI assets, so the wheel-content check is deferred to the
+  packaging job. The real `nobody` permissions check needs root and is also skipped.
+- Frontend: **30 component tests passed**; TypeScript and production build passed.
+- Packaging: wheel/sdist built; installed-wheel doctor and evidence-only bundle analysis
+  passed; both package checks passed, including UI assets and bundled license notices.
+- Playwright Chromium: **2 browser journeys passed** against the installed wheel with a
+  synthetic backend and fake provider. They exercise evidence-only analysis, finding-to-row
+  navigation, reports navigation, explicit model provenance and rejection of collection plans.
+
+This CI run does not use the owner's API credentials or a real model and is not an accuracy
+or production-readiness claim. The earlier local browser download limitation is superseded
+by the automated browser run above; manual visual and destination-server review remain open.
+
 ## Pending acceptance
 
 - This candidate against the real Velociraptor 0.76.5 API. The source retains the hunts()
@@ -35,9 +54,7 @@ were changed to force the skipped check to pass.
 - Real Ollama inference on the owner's existing model, including quality, speed and citations.
   A successful `doctor --probe-model` establishes model availability, not usable analysis.
 - A real interactive MCP client connected to this installed preview.
-- Browser journeys in `frontend/e2e/`: the official Playwright Chromium download returned an
-  invalid archive in this environment. No successful browser run or visual inspection is claimed.
-- Python versions other than 3.12, Ubuntu-specific installation and other CPU architectures.
+- Manual visual review, installation on the owner's destination server and other CPU architectures.
 - Independent code-provenance review, owner license selection, public publication.
 
 ## Destination-server checklist

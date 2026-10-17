@@ -24,5 +24,6 @@ are rendered as untrusted content. This is a local single-user analyst applicati
 on loopback and use SSH, rather than exposing it directly on a public address.
 
 Browser acceptance cases are in `frontend/e2e/`. Start the test-only server with the command
-in CONTRIBUTING.md. They have not been run here because the browser download was unavailable;
-component/API checks do not replace that acceptance test.
+in CONTRIBUTING.md. Both Chromium journeys passed against the installed wheel on GitHub
+Actions; see VALIDATION.md for the run and scope. They use a synthetic backend and fake model,
+so manual visual review and a real destination-server check remain necessary.
