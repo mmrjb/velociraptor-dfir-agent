@@ -5,7 +5,9 @@ CLI, and MCP server. Optional Ollama analysis proposes structured findings that 
 to the exact evidence rows used. Evidence-only review works without a model.
 
 **0.4.0a1 · alpha · private review candidate.** This is a narrowed edition of the internal
-0.3.1 project. Real-server and real-model acceptance checks remain open; see
+0.3.1 project. Installation, API/model availability probes and UI startup have passed on
+the owner's Ubuntu 24.04 server. Real-evidence retrieval and real-model analysis acceptance
+checks remain open; see
 [VALIDATION.md](VALIDATION.md). A project license has not been selected. Keep this candidate
 private until the publication checks in [PUBLISHING.md](PUBLISHING.md) are resolved.
 
@@ -65,3 +67,18 @@ establish row references, not the truth of a model's interpretation or a host's 
 [CLI guide](docs/cli.md) · [GUI guide](docs/ui.md) · [MCP and operations](docs/operations.md) ·
 [Evidence format](docs/evidence.md) · [Architecture](docs/architecture.md) ·
 [Attribution](ACKNOWLEDGEMENTS.md)
+
+## Project layout
+
+| Path | Purpose |
+|---|---|
+| `frontend/src/` | React GUI, evidence views and component tests |
+| `src/vr_dfir/` | Shared investigation pipeline, Velociraptor reads, analysis and reports; GUI API, CLI and MCP adapters |
+| `schemas/` | Evidence and analysis contracts |
+| `tests/` | Synthetic fixtures, API/CLI/MCP, analysis and packaging checks |
+| `scripts/` | Offline release build, isolated installer and release verification |
+| `docs/` | Architecture, usage, operations and optional systemd service template |
+| `.github/workflows/` | Python matrix, frontend, packaging and Chromium CI |
+
+For a persistent server installation, follow the optional
+[systemd setup](INSTALL.md#optional-systemd-service) after installing the isolated preview.

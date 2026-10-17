@@ -3,7 +3,8 @@
 The supplied offline bundle targets CPython 3.12 on Linux x86_64 with compatible manylinux
 wheels. No root account, Node.js, systemd changes, model downloads, or package index is needed
 for a release installation. Python's venv/ensurepip support must already be installed.
-The source declares Python >=3.10, but this candidate has only been exercised on 3.12.
+The source declares Python >=3.10; CI covers 3.10 through 3.13. The supplied offline
+wheelhouse is specifically for CPython 3.12 on Linux x86_64.
 
 ## Offline release
 
@@ -38,8 +39,8 @@ ssh -N -L 8766:127.0.0.1:8766 USER@SERVER
 ```
 
 Open `http://127.0.0.1:8766/`. Replace USER and SERVER with your SSH account and server.
-Keep the app in an existing terminal multiplexer session if it must survive a disconnected
-SSH terminal. A managed service can be added after lab acceptance.
+Keep the app in an existing terminal multiplexer session, or use the optional systemd
+service below, if it must survive a disconnected SSH terminal.
 
 ## Enable live reads and AI
 
@@ -48,6 +49,52 @@ read access to the API client file without making it world-readable. Set an exis
 model, run `doctor --probe --probe-model`, and restart the preview UI to reload configuration.
 A successful probe only checks reachability/model availability. Complete the real analysis
 checks in VALIDATION.md separately.
+
+## Optional systemd service
+
+The installer itself does not create a service. The included
+[`docs/systemd/vr-dfir-ai-preview.service`](docs/systemd/vr-dfir-ai-preview.service) is an
+optional administrator-managed template. It assumes an existing `vrdfir` account and an
+isolated installation owned by that account at `/opt/vr-dfir-ai-preview/0.4.0a1`.
+Its UI binds to `127.0.0.1:8766`; runtime state belongs in this preview's own `state/` directory.
+
+Before installing at that path, an administrator can create its parent:
+
+```bash
+sudo install -d -m 0750 -o vrdfir -g vrdfir /opt/vr-dfir-ai-preview
+```
+
+Run the release installer as `vrdfir`, passing `/opt/vr-dfir-ai-preview/0.4.0a1` as its
+destination. The account needs read/traverse access to the extracted release directory.
+Configure the generated `preview.env` with the API credential path and optional Ollama
+settings, retaining its private permissions. Use this preview's own state path and port;
+configure required values individually rather than copying an older application's entire
+environment file. Before starting the service, run from the preview installation directory:
+
+```bash
+sudo -u vrdfir /opt/vr-dfir-ai-preview/0.4.0a1/venv/bin/vr-dfir doctor \
+  --env-file /opt/vr-dfir-ai-preview/0.4.0a1/preview.env --probe --probe-model
+```
+
+After a successful check, run the following from a source checkout or release directory
+containing the service template:
+
+```bash
+sudo install -m 0644 docs/systemd/vr-dfir-ai-preview.service \
+  /etc/systemd/system/vr-dfir-ai-preview.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now vr-dfir-ai-preview
+sudo systemctl status vr-dfir-ai-preview --no-pager -l
+curl --retry 5 --retry-connrefused --retry-delay 1 \
+  --connect-timeout 2 --max-time 5 --fail --silent --show-error \
+  http://127.0.0.1:8766/api/v1/status
+```
+
+If your installation path or account differs, edit a copy of the unit to match it before
+installing. This unit has a distinct name from the internal `velociraptor-dfir-agent` service.
+After changing `preview.env`, run `sudo systemctl restart vr-dfir-ai-preview`.
+Inspect startup errors with `sudo journalctl -u vr-dfir-ai-preview -n 60 --no-pager`.
+Use the SSH tunnel described above to open the UI from a workstation.
 
 ## Source development
 
@@ -70,5 +117,8 @@ There is no public PyPI release for this private candidate.
 ## Stop or remove
 
 Ctrl+C stops the foreground application. Keep `state/` if you need the investigations.
+For the optional managed service, run `sudo systemctl disable --now vr-dfir-ai-preview`
+before removing its installation; the unit is at
+`/etc/systemd/system/vr-dfir-ai-preview.service`.
 A release lives entirely in its chosen destination; removal is a manual decision after
 backing up that state. No internal 0.3.x rollback or upgrade script is used for this edition.

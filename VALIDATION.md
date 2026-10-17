@@ -45,16 +45,38 @@ for source commit `58df886e7fbfc06fabce1af7892b93bc8cf118a8`, on Ubuntu 24.04 x8
 
 This CI run does not use the owner's API credentials or a real model and is not an accuracy
 or production-readiness claim. The earlier local browser download limitation is superseded
-by the automated browser run above; manual visual and destination-server review remain open.
+by the automated browser run above. Destination-server startup is recorded below;
+detailed manual visual and real-analysis acceptance remain open.
+
+## Reported on the destination server (2026-10-17)
+
+The owner ran the supplied offline release on Ubuntu 24.04 with Python 3.12.3 and shared
+terminal output. These are operator-reported checks, not commands executed by CI or by
+the assistant against that server:
+
+- The transferred archive passed `sha256sum -c`; the isolated installed command reports
+  `vr-dfir 0.4.0a1`.
+- `doctor --probe --probe-model` returned `Result: ok`: application dependencies, writable
+  preview state and bundled UI assets passed. The configured Velociraptor API was reachable
+  and Ollama reported the already installed `qwen2.5:1.5b` model available.
+- The separate `vr-dfir-ai-preview` systemd service is enabled and active under `vrdfir`.
+  Its startup log binds the UI to `127.0.0.1:8766`.
+- `/api/v1/status` returned `ok: true` and version `0.4.0a1`. The owner confirmed the UI
+  opened and was tested; detailed visual checks were not recorded.
+
+This establishes installation, startup and connectivity. It does not establish successful
+real-evidence retrieval, real Ollama inference, citation quality or detection accuracy.
+No destination-server evidence, credential files, host inventory or screenshots are included.
 
 ## Pending acceptance
 
-- This candidate against the real Velociraptor 0.76.5 API. The source retains the hunts()
-  compatibility fix from the owner's internal release; local tests only emulate API shapes.
+- Existing-flow/hunt evidence retrieval against the real Velociraptor 0.76.5 API, beyond
+  the successful availability probe. The source retains the hunts() compatibility fix
+  from the owner's internal release; local tests only emulate API shapes.
 - Real Ollama inference on the owner's existing model, including quality, speed and citations.
   A successful `doctor --probe-model` establishes model availability, not usable analysis.
 - A real interactive MCP client connected to this installed preview.
-- Manual visual review, installation on the owner's destination server and other CPU architectures.
+- Detailed manual visual review and other CPU architectures.
 - Independent code-provenance review, owner license selection, public publication.
 
 ## Destination-server checklist

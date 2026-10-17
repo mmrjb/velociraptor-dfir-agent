@@ -3,6 +3,8 @@
 Use separate state and port 8766 for the preview. Keep the original 0.3.x service running
 independently. Only configure approved API/model endpoints and retain private file permissions.
 There is no automatic installation, collection, model download, or public exposure on launch.
+An optional [systemd setup](../INSTALL.md#optional-systemd-service) keeps the isolated UI
+running across SSH disconnects and server restarts. The installer does not register it.
 
 ## MCP
 
