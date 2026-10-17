@@ -14,8 +14,9 @@ async function analyzeFlow(page: import('@playwright/test').Page, noAi: boolean)
 
 test('existing flow to exact evidence row and report, without model requests', async ({ page }) => {
   await analyzeFlow(page, true);
-  await expect(page.getByRole('heading', { name: 'Evidence only', exact: true })).toBeVisible();
+  await expect(page.getByText('Evidence was saved and checked with deterministic review signals. No AI analysis was requested.', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'View Evidence', exact: true }).click();
+  await page.getByRole('list', { name: 'Findings', exact: true }).getByRole('button').first().click();
   const evidence = page.getByRole('button', { name: /^Open evidence ev-[a-f0-9]+$/ }).first();
   await evidence.click();
   await expect(page.getByText(/zero-based position/)).toBeVisible();
