@@ -1,0 +1,9 @@
+{
+ "provenance": {
+  "source": "Synthetic values shaped by Velociraptor v0.77.3 source (tag v0.77.3, commit 7d287b0b): flows/proto/artifact_collector.proto (ArtifactCollectorContext), crypto/proto/jobs.proto (VeloStatus), api/proto/flows.proto (FlowDetails), vql/server/flows/flows.go (flows(), get_flow()), json/protobuf.go (ConvertProtoToOrderedDict: enum names, zero values included), vql/server/hunts/hunts.go (hunt_flows row shape), services/launcher/flows.go (CancelFlow sets ERROR + 'Cancelled by').",
+  "server_version": "0.77.3 (source inspection; not captured from a live server)",
+  "sanitized": "fully synthetic IDs and values",
+  "description": "flows() for an unknown flow ID yields no rows"
+ },
+ "response": []
+}

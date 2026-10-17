@@ -1,0 +1,93 @@
+# Offline CI: no secrets, no Velociraptor server, no model server.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e '.[dev]'
+      - run: ruff check src tests scripts
+      - run: pytest -q
+
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test -- --maxWorkers=1
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-static
+          path: src/vr_dfir/web/static
+          include-hidden-files: true
+
+  package-and-e2e:
+    needs: [python, frontend]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ui-static
+          path: src/vr_dfir/web/static
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: python -m pip install --upgrade pip build
+      - name: Build wheel with the UI assets
+        run: python -m build
+      - name: Package checks (installed wheel serves the UI)
+        run: |
+          python -m venv /tmp/wheelenv
+          /tmp/wheelenv/bin/pip install "$(ls dist/*.whl)[ui,mcp]" pytest
+          /tmp/wheelenv/bin/vr-dfir doctor --state-dir /tmp/doctor-state
+          /tmp/wheelenv/bin/vr-dfir analyze bundle --input tests/fixtures/bundle --no-llm --state-dir /tmp/bundle-state
+          python -m pip install -e '.[dev]' && pytest -q tests/test_packaging.py
+      - name: Browser journeys against the installed app
+        working-directory: frontend
+        env:
+          # The installed wheel plus the synthetic test runtime from tests/support.
+          VR_DFIR_PYTHON: /tmp/wheelenv/bin/python
+          PYTHONPATH: ${{ github.workspace }}/tests
+          VR_DFIR_STATE_DIR: /tmp/e2e-state
+          VR_DFIR_E2E_SERVER: ${{ github.workspace }}/tests/support/e2e_server.py
+          VR_DFIR_E2E_MODEL_MODE_FILE: /tmp/e2e-model-mode
+          VR_DFIR_E2E_COMMAND: /tmp/wheelenv/bin/python ${{ github.workspace }}/tests/support/e2e_server.py --port 8766
+          VR_DFIR_SCREENSHOT_DIR: /tmp/screenshots
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report

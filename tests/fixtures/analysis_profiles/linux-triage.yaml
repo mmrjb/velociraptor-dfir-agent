@@ -1,0 +1,38 @@
+# Generic Linux triage using built-in Velociraptor artifacts. Artifact names, sources and
+# parameters were checked against the Velociraptor v0.77.3 artifact definitions.
+schema_version: 1
+id: linux-triage
+name: Linux Process and Network Triage
+description: Processes, enriched network connections and local accounts from built-in artifacts.
+purpose: Quick review of running processes, their network activity, and local users.
+platforms: [linux]
+objective: Identify processes and connections that merit analyst review, with benign explanations.
+collections:
+  - id: processes
+    artifact: Linux.Sys.Pslist
+    required: true
+    parameters: {}
+    sources: discover
+    limits: {collection_timeout_seconds: 300, wait_timeout_seconds: 420, page_size: 500,
+             max_rows_per_source: 20000}
+  - id: network
+    artifact: Linux.Network.NetstatEnriched
+    required: true
+    parameters: {}
+    sources: discover
+    limits: {collection_timeout_seconds: 300, wait_timeout_seconds: 420}
+  - id: users
+    artifact: Linux.Sys.Users
+    required: false
+    parameters: {}
+    sources: discover
+analysts:
+  - id: process-network
+    objective: Relate processes to network connections and note review-worthy combinations.
+    inputs: [processes, network]
+  - id: accounts
+    objective: Describe local accounts that merit review (for example additional UID 0 accounts).
+    inputs: [users]
+analysis:
+  max_model_input_chars: 12000
+  max_rows_per_source_to_model: 40

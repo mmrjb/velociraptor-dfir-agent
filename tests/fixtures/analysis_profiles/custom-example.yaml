@@ -1,0 +1,25 @@
+# Custom-namespace example backed by synthetic fixtures (Custom.Example exists only in the
+# offline demo server). Copy this file to start a profile for your own namespace.
+schema_version: 1
+id: custom-example
+name: Custom Namespace Example
+description: Demonstrates a profile for a non-OS-prefixed artifact namespace.
+purpose: Inventory files with an organization-specific artifact.
+platforms: [linux]
+objective: Describe files that merit review and why.
+collections:
+  - id: inventory
+    artifact: Custom.Example
+    required: true
+    parameters:
+      PathGlob: /opt/**
+      Mode: fast
+      IncludeHidden: false
+    sources: [Inventory, Notes]
+    limits: {collection_timeout_seconds: 300, wait_timeout_seconds: 360, page_size: 200}
+analysts:
+  - id: inventory-review
+    objective: Describe files that merit review and plausible benign explanations.
+    inputs: [inventory/Inventory]
+analysis:
+  counts_only_sources: [inventory/Notes]

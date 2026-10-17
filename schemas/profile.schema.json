@@ -1,0 +1,403 @@
+{
+  "$defs": {
+    "AnalysisSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "counts_only_sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Counts Only Sources",
+          "type": "array"
+        },
+        "max_model_input_chars": {
+          "default": 12000,
+          "maximum": 2000000,
+          "minimum": 1000,
+          "title": "Max Model Input Chars",
+          "type": "integer"
+        },
+        "max_output_tokens": {
+          "default": 1024,
+          "maximum": 32768,
+          "minimum": 64,
+          "title": "Max Output Tokens",
+          "type": "integer"
+        },
+        "max_model_requests": {
+          "default": 6,
+          "maximum": 50,
+          "minimum": 1,
+          "title": "Max Model Requests",
+          "type": "integer"
+        },
+        "max_rows_per_source_to_model": {
+          "default": 40,
+          "maximum": 5000,
+          "minimum": 1,
+          "title": "Max Rows Per Source To Model",
+          "type": "integer"
+        },
+        "max_field_chars": {
+          "default": 300,
+          "maximum": 20000,
+          "minimum": 20,
+          "title": "Max Field Chars",
+          "type": "integer"
+        },
+        "sampling": {
+          "default": "signals_then_stratified",
+          "enum": [
+            "signals_then_stratified",
+            "stratified",
+            "head"
+          ],
+          "title": "Sampling",
+          "type": "string"
+        },
+        "model_input_fields": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Model Input Fields",
+          "type": "object"
+        },
+        "field_aliases": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Field Aliases",
+          "type": "object"
+        },
+        "event_time_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Event Time Fields",
+          "type": "array"
+        }
+      },
+      "title": "AnalysisSettings",
+      "type": "object"
+    },
+    "Analyst": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "objective": {
+          "title": "Objective",
+          "type": "string"
+        },
+        "inputs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Inputs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "objective",
+        "inputs"
+      ],
+      "title": "Analyst",
+      "type": "object"
+    },
+    "Collection": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "artifact": {
+          "title": "Artifact",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
+                },
+                "type": "array"
+              }
+            ]
+          },
+          "title": "Parameters",
+          "type": "object"
+        },
+        "sources": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "const": "discover",
+              "type": "string"
+            }
+          ],
+          "default": "discover",
+          "title": "Sources"
+        },
+        "behavior_notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Behavior Notes",
+          "type": "array"
+        },
+        "limits": {
+          "$ref": "#/$defs/CollectionLimits"
+        }
+      },
+      "required": [
+        "id",
+        "artifact"
+      ],
+      "title": "Collection",
+      "type": "object"
+    },
+    "CollectionLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "collection_timeout_seconds": {
+          "default": 600,
+          "maximum": 86400,
+          "minimum": 10,
+          "title": "Collection Timeout Seconds",
+          "type": "integer"
+        },
+        "max_collection_rows": {
+          "anyOf": [
+            {
+              "maximum": 100000000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Collection Rows"
+        },
+        "max_upload_bytes": {
+          "anyOf": [
+            {
+              "maximum": 10000000000000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Upload Bytes"
+        },
+        "wait_timeout_seconds": {
+          "default": 660,
+          "maximum": 172800,
+          "minimum": 10,
+          "title": "Wait Timeout Seconds",
+          "type": "integer"
+        },
+        "poll_interval_seconds": {
+          "default": 3,
+          "maximum": 300,
+          "minimum": 0.05,
+          "title": "Poll Interval Seconds",
+          "type": "number"
+        },
+        "page_size": {
+          "default": 500,
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "max_rows_per_source": {
+          "default": 10000,
+          "maximum": 5000000,
+          "minimum": 1,
+          "title": "Max Rows Per Source",
+          "type": "integer"
+        },
+        "max_bytes_per_source": {
+          "default": 50000000,
+          "maximum": 10000000000,
+          "minimum": 1024,
+          "title": "Max Bytes Per Source",
+          "type": "integer"
+        },
+        "urgent": {
+          "default": false,
+          "title": "Urgent",
+          "type": "boolean"
+        }
+      },
+      "title": "CollectionLimits",
+      "type": "object"
+    },
+    "RetrievalSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "max_total_rows": {
+          "default": 200000,
+          "maximum": 50000000,
+          "minimum": 1,
+          "title": "Max Total Rows",
+          "type": "integer"
+        },
+        "max_total_bytes": {
+          "default": 500000000,
+          "maximum": 100000000000,
+          "minimum": 1024,
+          "title": "Max Total Bytes",
+          "type": "integer"
+        },
+        "max_concurrent_reads": {
+          "default": 2,
+          "maximum": 8,
+          "minimum": 1,
+          "title": "Max Concurrent Reads",
+          "type": "integer"
+        },
+        "read_retries": {
+          "default": 2,
+          "maximum": 5,
+          "minimum": 0,
+          "title": "Read Retries",
+          "type": "integer"
+        },
+        "retry_backoff_seconds": {
+          "default": 1.0,
+          "maximum": 60,
+          "minimum": 0,
+          "title": "Retry Backoff Seconds",
+          "type": "number"
+        }
+      },
+      "title": "RetrievalSettings",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+    },
+    "purpose": {
+      "default": "",
+      "title": "Purpose",
+      "type": "string"
+    },
+    "platforms": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Platforms",
+      "type": "array"
+    },
+    "objective": {
+      "default": "",
+      "title": "Objective",
+      "type": "string"
+    },
+    "guidance": {
+      "default": "",
+      "title": "Guidance",
+      "type": "string"
+    },
+    "collections": {
+      "items": {
+        "$ref": "#/$defs/Collection"
+      },
+      "title": "Collections",
+      "type": "array"
+    },
+    "analysts": {
+      "items": {
+        "$ref": "#/$defs/Analyst"
+      },
+      "title": "Analysts",
+      "type": "array"
+    },
+    "analysis": {
+      "$ref": "#/$defs/AnalysisSettings"
+    },
+    "retrieval": {
+      "$ref": "#/$defs/RetrievalSettings"
+    }
+  },
+  "required": [
+    "schema_version",
+    "id",
+    "name",
+    "platforms",
+    "collections"
+  ],
+  "title": "Velociraptor DFIR Agent investigation profile (schema_version 1)",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/velociraptor-dfir-agent/profile.schema.json"
+}

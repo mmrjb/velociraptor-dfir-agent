@@ -1,0 +1,99 @@
+{
+ "provenance": {
+  "source": "Synthetic values shaped by Velociraptor v0.77.3 source (tag v0.77.3, commit 7d287b0b): flows/proto/artifact_collector.proto (ArtifactCollectorContext), crypto/proto/jobs.proto (VeloStatus), api/proto/flows.proto (FlowDetails), vql/server/flows/flows.go (flows(), get_flow()), json/protobuf.go (ConvertProtoToOrderedDict: enum names, zero values included), vql/server/hunts/hunts.go (hunt_flows row shape), services/launcher/flows.go (CancelFlow sets ERROR + 'Cancelled by').",
+  "server_version": "0.77.3 (source inspection; not captured from a live server)",
+  "sanitized": "fully synthetic IDs and values",
+  "description": "flows() row: a query failed"
+ },
+ "response": [
+  {
+   "client_id": "C.SYNTH0000000042",
+   "session_id": "F.SYNTHFIX01",
+   "request": {
+    "creator": "synthetic-api",
+    "user_data": "",
+    "client_id": "C.SYNTH0000000042",
+    "flow_id": "",
+    "urgent": false,
+    "artifacts": [
+     "LTH.SystemBaseline"
+    ],
+    "specs": [],
+    "cpu_limit": 0,
+    "iops_limit": 0,
+    "progress_timeout": 0,
+    "timeout": 600,
+    "max_rows": 0,
+    "max_upload_bytes": 0
+   },
+   "previous_flows": [],
+   "backtrace": "",
+   "create_time": 1767225600000000,
+   "start_time": 1767225602000000,
+   "active_time": 1767225630000000,
+   "inflight_time": 0,
+   "total_uploaded_files": 0,
+   "total_expected_uploaded_bytes": 0,
+   "total_uploaded_bytes": 0,
+   "total_collected_rows": 160,
+   "total_logs": 12,
+   "total_requests": 10,
+   "outstanding_requests": 0,
+   "transactions_outstanding": 0,
+   "next_response_id": 0,
+   "execution_duration": 31000000000,
+   "state": "ERROR",
+   "status": "Query Services failed",
+   "artifacts_with_results": [],
+   "query_stats": [
+    {
+     "status": "OK",
+     "error_message": "",
+     "backtrace": "",
+     "duration": 1200000000,
+     "last_active": 1767225630000000,
+     "first_active": 1767225603000000,
+     "names_with_response": [
+      "LTH.SystemBaseline/Processes"
+     ],
+     "Artifact": "LTH.SystemBaseline/Processes",
+     "log_rows": 1,
+     "uploaded_files": 0,
+     "uploaded_bytes": 0,
+     "expected_uploaded_bytes": 0,
+     "result_rows": 160,
+     "query_id": 5,
+     "total_queries": 10,
+     "transactions_outstanding": 0
+    },
+    {
+     "status": "GENERIC_ERROR",
+     "error_message": "services: permission denied",
+     "backtrace": "",
+     "duration": 900000000,
+     "last_active": 1767225630000000,
+     "first_active": 1767225603000000,
+     "names_with_response": [],
+     "Artifact": "LTH.SystemBaseline/Services",
+     "log_rows": 2,
+     "uploaded_files": 0,
+     "uploaded_bytes": 0,
+     "expected_uploaded_bytes": 0,
+     "result_rows": 0,
+     "query_id": 6,
+     "total_queries": 10,
+     "transactions_outstanding": 0
+    }
+   ],
+   "uploaded_files": [],
+   "user_notified": false,
+   "logs": [],
+   "dirty": false,
+   "total_loads": 0,
+   "AvailableDownloads": {
+    "files": [],
+    "timestamp": 0
+   }
+  }
+ ]
+}

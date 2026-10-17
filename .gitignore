@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+# Built UI assets are produced by `npm run build` and shipped in the wheel, not tracked.
+src/vr_dfir/web/static/*
+!src/vr_dfir/web/static/.gitkeep
+
+# Local configuration and secrets (never commit)
+.env
+.env.*
+!.env.example
+api_client*.yaml
+*.pem
+*.key
+.mcp.json
+collection-allowlist.yaml
+
+# Runtime output
+vr-dfir-state/
+runs/
+reports/
+*.log
+
+# Private review inputs (notebook and artifact source exports) - never commit or package
+inputs/
+*-sources-review*.zip
+*-sources-review*/
+triage-templates/

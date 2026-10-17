@@ -1,0 +1,57 @@
+# LTH Linux baseline: one LTH.SystemBaseline collection read through ten named sources.
+#
+# Source names come from the project brief. The LTH.SystemBaseline definition itself was
+# not supplied with this release, so live preflight ('vr-dfir profiles plan') verifies the
+# artifact, its type, and these source names against the server before anything launches.
+schema_version: 1
+id: lth-baseline
+name: LTH Linux Baseline
+description: Review the installed LTH baseline wrapper using one collection.
+purpose: >-
+  Point-in-time Linux baseline (host, users, processes, services, network, cron,
+  packages) from a single LTH.SystemBaseline collection.
+platforms: [linux]
+objective: Describe notable baseline observations and their limitations.
+guidance: >-
+  Treat the host as a potential production system unless the evidence shows a lab or
+  administrator context. Public addresses, temporary paths, UID 0 accounts, and deleted
+  executables are review signals, not verdicts. This workflow does not run Master Triage
+  notebook logic or reproduce its scoring.
+collections:
+  - id: baseline
+    artifact: LTH.SystemBaseline
+    required: true
+    parameters: {}
+    sources:
+      - Client_BasicInformation
+      - Client_LinuxInfo
+      - Mounts
+      - Users
+      - Processes
+      - Services
+      - NetworkConnections
+      - Crontab
+      - DebianPackages
+      - RHELPackages
+    behavior_notes:
+      - The supplied baseline can hash executable files on the endpoint.
+      - Its cron dependency can upload cron files to the Velociraptor server.
+      - The cron dependency may omit some user-specific entries.
+      - Service rows may not include executable paths.
+    limits:
+      collection_timeout_seconds: 600
+      wait_timeout_seconds: 660
+      poll_interval_seconds: 3
+      page_size: 500
+      max_rows_per_source: 10000
+analysts:
+  - id: baseline-review
+    objective: Describe notable baseline observations and their limitations.
+    inputs: [baseline]
+analysis:
+  counts_only_sources: [DebianPackages, RHELPackages]
+  max_model_input_chars: 6800
+  max_output_tokens: 512
+  max_model_requests: 4
+  max_rows_per_source_to_model: 25
+  max_field_chars: 240

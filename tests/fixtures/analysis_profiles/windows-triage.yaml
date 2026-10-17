@@ -1,0 +1,32 @@
+# Generic Windows triage using built-in Velociraptor artifacts. Artifact names, sources and
+# parameters were checked against the Velociraptor v0.77.3 artifact definitions.
+schema_version: 1
+id: windows-triage
+name: Windows Process, Network and Service Triage
+description: Processes, enriched network connections and services from built-in artifacts.
+purpose: Quick review of running processes, network activity and installed services.
+platforms: [windows]
+objective: Identify processes, connections and services that merit analyst review.
+collections:
+  - id: processes
+    artifact: Windows.System.Pslist
+    required: true
+    parameters: {}
+    sources: discover
+  - id: network
+    artifact: Windows.Network.NetstatEnriched
+    required: true
+    parameters: {}
+    sources: [Netstat]
+  - id: services
+    artifact: Windows.System.Services
+    required: false
+    parameters: {}
+    sources: discover
+analysts:
+  - id: process-network
+    objective: Relate processes to network connections and note review-worthy combinations.
+    inputs: [processes, network]
+  - id: services
+    objective: Describe services that merit review, such as unusual binary locations.
+    inputs: [services]

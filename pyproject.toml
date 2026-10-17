@@ -1,0 +1,105 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "velociraptor-dfir-agent"
+dynamic = ["version"]
+description = "Read-only AI-assisted evidence review for Velociraptor, with a local GUI, CLI, and MCP interface."
+readme = "README.md"
+requires-python = ">=3.10"
+# License: not yet selected. See ACKNOWLEDGEMENTS.md and PUBLISHING.md before publication.
+authors = [{ name = "Velociraptor DFIR Agent contributors" }]
+keywords = ["velociraptor", "dfir", "mcp", "incident-response", "forensics"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: POSIX :: Linux",
+  "Topic :: Security",
+  "Private :: Do Not Upload",
+]
+dependencies = [
+  "pyyaml>=6.0,<7",
+  "pydantic>=2.6,<3",
+  "httpx>=0.27,<1",
+  "grpcio>=1.60,<2",
+  "pyvelociraptor>=0.1.10,<0.2",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.10,<3"]
+ui = ["fastapi>=0.110,<1", "uvicorn>=0.29,<1"]
+all = ["mcp>=1.10,<3", "fastapi>=0.110,<1", "uvicorn>=0.29,<1"]
+dev = [
+  "mcp>=1.10,<3",
+  "fastapi>=0.110,<1",
+  "uvicorn>=0.29,<1",
+  "pytest>=8",
+  "ruff>=0.6",
+  "build>=1.2",
+]
+
+[project.scripts]
+vr-dfir = "vr_dfir.cli:main"
+vr-dfir-mcp = "vr_dfir.mcp_server:main"
+
+[tool.hatch.version]
+path = "src/vr_dfir/version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vr_dfir"]
+# Built frontend assets are git-ignored but must ship in the wheel.
+artifacts = ["src/vr_dfir/web/static/**"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"schemas" = "vr_dfir/data/schemas"
+"THIRD_PARTY_NOTICES.md" = "vr_dfir/data/THIRD_PARTY_NOTICES.md"
+"NOTICE" = "vr_dfir/data/NOTICE"
+
+[tool.hatch.build.targets.sdist]
+# Leading "/" anchors each pattern at the project root (patterns are gitignore-style).
+include = [
+  "/src/vr_dfir",
+  "/schemas",
+  "/docs",
+  "/frontend/src",
+  "/frontend/index.html",
+  "/frontend/package.json",
+  "/frontend/package-lock.json",
+  "/frontend/tsconfig*.json",
+  "/frontend/vite.config.ts",
+  "/README.md",
+  "/CHANGELOG.md",
+  "/ACKNOWLEDGEMENTS.md",
+  "/NOTICE",
+  "/INSTALL.md",
+  "/CONFIGURATION.md",
+  "/PUBLISHING.md",
+  "/THIRD_PARTY_NOTICES.md",
+]
+exclude = ["/frontend/src/__tests__"]
+artifacts = ["src/vr_dfir/web/static/**"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+pythonpath = ["src", "tests"]
+markers = [
+  "live: requires a lab Velociraptor server; opt-in via VR_DFIR_LIVE_TESTS=1",
+  "live_model: requires a reachable model server; opt-in via VR_DFIR_LIVE_MODEL_TESTS=1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "BLE"]
+ignore = ["S101", "S603", "S607", "S311", "E501", "UP017"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B", "BLE"]
+# Fixed VQL templates: every interpolated value goes through vql.literal() or ids.* validation.
+"src/vr_dfir/vql.py" = ["S608"]
+# Temporary-directory paths and 0.0.0.0 are detection-rule inputs and synthetic evidence values.
+"src/vr_dfir/analysis/signals.py" = ["S108"]
