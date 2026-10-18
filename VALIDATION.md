@@ -19,6 +19,31 @@ separately below; none of these checks establishes detection accuracy or model q
 - These are synthetic checks; the a2 report has not yet been installed on the owner's server.
   The live results below concern a1 and are retained as historical evidence.
 
+## Reported destination upgrade to 0.4.0a2 (2026-10-18)
+
+The owner supplied terminal output and the regenerated HTML report. These are
+operator-reported destination checks and a static inspection of the supplied export;
+the assistant did not operate the destination server.
+
+- The installed CLI reports 0.4.0a2. The preview service is active and its command points
+  to the a2 virtualenv and configuration. The loopback status API reports 0.4.0a2,
+  read-only backend access and the existing Ollama configuration.
+- Rebuilding an existing saved investigation produced JSON, Markdown and HTML in the a2
+  state copy. This was report regeneration, not a new analysis or inference benchmark.
+- The supplied HTML identifies generator 0.4.0a2, summarizes three accepted findings
+  (two model proposals and one deterministic signal), and places the medium rule finding
+  before the two informational model proposals.
+- Evidence coverage records ten sources and 2,114 saved rows. The recorded prepared
+  model input is only two of 244 process rows, reduced for the request budget, with one
+  recorded valid request. Other sources are marked not selected for that model view.
+  These counts do not imply whole-bundle model analysis or useful threat discovery.
+- Static inspection found three embedded WOFF2 fonts with their license text, no script
+  elements or external resource references, no duplicate HTML IDs, and all local evidence
+  links resolving. This is not a manual visual rendering assessment.
+- The original larger-workload timeouts and model-quality limitations remain open.
+  No real rows, host/account names, credentials or investigation identifiers are included
+  in this validation record.
+
 ## Completed in this workspace (2026-10-17)
 
 - Python 3.12.14: **149 passed, 1 skipped**. Coverage includes the shared existing-flow/hunt/bundle pipeline, API contracts, resume, coverage,
