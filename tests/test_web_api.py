@@ -124,6 +124,7 @@ def test_journey_findings_evidence_report(make_client):
                                                                       "download": True})
     assert html.status_code == 200 and "attachment" in html.headers["content-disposition"]
     assert "sandbox" in html.headers["content-security-policy"]
+    assert "font-src data:" in html.headers["content-security-policy"]
     assert "frame-ancestors 'self'" in html.headers["content-security-policy"]
     assert html.headers["x-frame-options"] == "SAMEORIGIN"
     assert client.get("/api/v1/status").headers["x-frame-options"] == "DENY"

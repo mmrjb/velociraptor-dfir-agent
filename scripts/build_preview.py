@@ -10,6 +10,7 @@ import argparse
 import gzip
 import hashlib
 import os
+import re
 import runpy
 import shutil
 import subprocess
@@ -47,11 +48,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
     parser.add_argument("--wheelhouse", type=Path, required=True)
+    parser.add_argument("--source-commit", help="Remote source commit when restored via an API")
+    parser.add_argument("--source-tree", help="Remote Git tree SHA; must match the local tree")
     args = parser.parse_args()
     __version__ = runpy.run_path(str(ROOT / "src/vr_dfir/version.py"))["__version__"]
     name = f"velociraptor-dfir-ai-preview-{__version__}"
     if run("git", "status", "--porcelain", capture_output=True, text=True).stdout.strip():
         raise SystemExit("Commit the reviewed source before packaging.")
+    tree = run("git", "rev-parse", "HEAD^{tree}", capture_output=True, text=True).stdout.strip()
+    if bool(args.source_commit) != bool(args.source_tree):
+        raise SystemExit("--source-commit and --source-tree must be supplied together.")
+    if args.source_commit and (not re.fullmatch(r"[0-9a-f]{40}", args.source_commit)
+                               or args.source_tree != tree):
+        raise SystemExit("The remote source tree must exactly match the committed local tree.")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     stage = output / name
@@ -76,15 +85,17 @@ def main():
     source = stage / "source" / "velociraptor-dfir-agent-src.tar.gz"
     with source.open("wb") as stream:
         run("git", "archive", "--format=tar.gz", "--prefix=velociraptor-dfir-agent/",
-            "HEAD", stdout=stream)
+            "HEAD^{tree}", stdout=stream)
     for doc in ROOT.glob("*.md"):
         shutil.copy2(doc, stage / doc.name)
     shutil.copy2(ROOT / "NOTICE", stage)
     shutil.copy2(ROOT / ".env.example", stage)
     shutil.copytree(ROOT / "docs", stage / "docs")
     shutil.copy2(ROOT / "scripts/install-preview.sh", stage / "install-preview.sh")
-    commit = run("git", "rev-parse", "HEAD", capture_output=True, text=True).stdout.strip()
+    commit = args.source_commit or run("git", "rev-parse", "HEAD", capture_output=True,
+                                      text=True).stdout.strip()
     (stage / "SOURCE_COMMIT.txt").write_text(commit + "\n")
+    (stage / "SOURCE_TREE.txt").write_text(tree + "\n")
     archive_path = output / f"{name}.tar.gz"
     digest = archive_release(stage, archive_path)
     checksum = archive_path.with_name(archive_path.name + ".sha256")

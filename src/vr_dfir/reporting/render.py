@@ -9,6 +9,8 @@ from __future__ import annotations
 import html
 import json
 
+from vr_dfir.reporting.fonts import embedded_fonts
+
 _BADGE = {
     "rows": ("ok", "Rows"), "empty_or_skipped": ("warn", "Empty or skipped"),
     "skipped_precondition": ("warn", "Skipped (precondition)"),
@@ -59,7 +61,19 @@ def render_markdown(report: dict) -> str:
     out.append("\n## Summary\n")
     for s in report["summary_statements"]:
         out.append(f"- {_md_escape(s)}")
-    out.append("\n## Coverage\n")
+    model = report.get("model_coverage")
+    if model:
+        out.append("\n## Model input coverage\n")
+        out.append(_md_escape(model["note"]))
+        out.append("\nRequest attempts: " + _md_escape(_request_statuses(model)) + "\n")
+        out.append("| Source / client | Analyst | Selected / saved rows | Selection | Notes |")
+        out.append("|---|---|---|---|---|")
+        for s in model["sources"]:
+            out.append(f"| {_md_escape(s['full_name'])} / {_md_escape(s['client_id'])} | "
+                       f"{_md_escape(s.get('analyst_id') or '-')} | {_selected_rows(s)} / "
+                       f"{s['rows_persisted']} | {_md_escape(_selection(s))} | "
+                       f"{_md_escape('; '.join(s['notes']))} |")
+    out.append("\n## Evidence coverage\n")
     out.append("| Source | Client | Result | Read | Rows saved | Available | Notes |")
     out.append("|---|---|---|---|---|---|---|")
     for s in report["coverage"]["sources"]:
@@ -125,8 +139,8 @@ def render_markdown(report: dict) -> str:
 _CSS = """
 :root{--bg:#f6f8fa;--surface:#fff;--text:#1f2933;--muted:#5f6b7a;--border:#d9e0e7;
 --accent:#1f6feb;--ok:#1a7f37;--warn:#9a6700;--bad:#c62828}
-*{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",
-Roboto,"Noto Sans",sans-serif;background:var(--bg);color:var(--text)}
+*{box-sizing:border-box}body{margin:0;font:14px/1.65 "Inter Variable","Vazirmatn Variable",
+system-ui,sans-serif;background:var(--bg);color:var(--text);overflow-wrap:anywhere}
 main{max-width:1100px;margin:0 auto;padding:24px 16px}h1{font-size:22px;margin:0 0 8px}
 h2{font-size:17px;margin:28px 0 8px}h3{font-size:15px;margin:0}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:8px;
@@ -136,12 +150,36 @@ table{border-collapse:collapse;width:100%;background:var(--surface)}th,td{border
 var(--border);padding:6px 8px;text-align:left;vertical-align:top}th{background:#eef2f6}
 .badge{display:inline-block;border-radius:10px;padding:1px 8px;font-size:12px;
 border:1px solid currentColor}.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
-.muted{color:var(--muted)}code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,
-Consolas,monospace;font-size:12.5px}td.v{white-space:pre-wrap;word-break:break-word}
+.muted{color:var(--muted)}code,.mono{font-family:"JetBrains Mono Variable",
+"Vazirmatn Variable",ui-monospace,monospace;font-size:12.5px}td.v{white-space:pre-wrap;word-break:break-word}
 details>summary{cursor:pointer;color:var(--accent)}a{color:var(--accent)}
-.kv{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px}
+.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 12px}
+pre{overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 @media (max-width:700px){table{display:block;overflow-x:auto}}
+@media print{body{background:white}.card{break-inside:avoid}a{color:inherit}}
 """
+
+
+def _selected_rows(source: dict) -> str:
+    value = source.get("rows_selected")
+    return str(value) if value is not None else "-"
+
+
+def _selection(source: dict) -> str:
+    parts = [source["state"]]
+    if source.get("sampling"):
+        parts.append(source["sampling"])
+    if source.get("fields"):
+        parts.append("Fields: " + ", ".join(source["fields"]))
+    if source.get("truncated_values") is not None:
+        parts.append(f"Truncated values: {source['truncated_values']}")
+    return "; ".join(parts)
+
+
+def _request_statuses(model: dict) -> str:
+    statuses = ", ".join(f"{count} {status}" for status, count
+                         in sorted(model["request_statuses"].items()))
+    return f"{model['request_attempts']} recorded" + (f" ({statuses})" if statuses else "")
 
 
 def _e(value) -> str:
@@ -158,13 +196,14 @@ def render_html(report: dict) -> str:
     st = report["status"]
     prov = report.get("provider") or {}
     scope = report.get("scope") or {}
+    font_css, font_notices = embedded_fonts()
     parts = [
         "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\">",
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
         "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; "
-        "style-src 'unsafe-inline'; img-src 'none'; script-src 'none'\">",
+        "style-src 'unsafe-inline'; font-src data:; img-src 'none'; script-src 'none'\">",
         f"<title>Investigation report {_e(inv.get('id'))}</title>",
-        f"<style>{_CSS}</style></head><body><main>",
+        f"<style>{font_css}\n{_CSS}</style></head><body><main>",
     ]
     if report.get("data_label"):
         parts.append(f'<p class="synthetic">{_e(report["data_label"])}</p>')
@@ -200,7 +239,23 @@ def render_html(report: dict) -> str:
         parts.append(f"<li>{_e(s)}</li>")
     parts.append("</ul>")
 
-    parts.append("<h2>Coverage</h2><table><thead><tr><th>Source</th><th>Client</th>"
+    model = report.get("model_coverage")
+    if model:
+        parts.append(f'<h2>Model input coverage</h2><p>{_e(model["note"])}</p>')
+        parts.append(f'<p>Request attempts: {_e(_request_statuses(model))}</p>')
+        parts.append("<table><thead><tr><th>Source / client</th><th>Analyst</th>"
+                     "<th>Selected / saved rows</th><th>Selection</th><th>Notes</th>"
+                     "</tr></thead><tbody>")
+        for s in model["sources"]:
+            parts.append(f'<tr><td><code>{_e(s["full_name"])}</code><br>'
+                         f'<span dir="auto">{_e(s.get("hostname"))}</span><br>'
+                         f'<code>{_e(s["client_id"])}</code></td>'
+                         f'<td>{_e(s.get("analyst_id") or "-")}</td>'
+                         f'<td>{_e(_selected_rows(s))} / {_e(s["rows_persisted"])}</td>'
+                         f'<td>{_e(_selection(s))}</td><td>{_e("; ".join(s["notes"]))}</td></tr>')
+        parts.append("</tbody></table>")
+
+    parts.append("<h2>Evidence coverage</h2><table><thead><tr><th>Source</th><th>Client</th>"
                  "<th>Result</th><th>Read</th><th>Rows saved</th><th>Available</th>"
                  "<th>Notes</th></tr></thead><tbody>")
     for s in report["coverage"]["sources"]:
@@ -301,5 +356,7 @@ def render_html(report: dict) -> str:
         parts.append("<h2>Suggested follow-up</h2><ul>"
                      + "".join(f"<li>{_e(s)}</li>" for s in report["next_steps"]) + "</ul>")
     parts.append(f'<p class="meta">{_e(report["citation_validation_note"])}</p>')
+    if font_notices:
+        parts.append(f'<template id="font-licenses"><pre>{_e(font_notices)}</pre></template>')
     parts.append("</main></body></html>")
     return "\n".join(parts)

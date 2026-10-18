@@ -9,7 +9,7 @@ TAG="$("$PYTHON" -c 'import sys; print(f"cp{sys.version_info.major}{sys.version_
 [[ "$(uname -m)" == x86_64 && "$(uname -s)" == Linux ]] || {
   echo 'This offline preview targets Linux x86_64.' >&2; exit 1;
 }
-DEST="${1:-$HOME/.local/opt/vr-dfir-ai-preview/0.4.0a1}"
+DEST="${1:-$HOME/.local/opt/vr-dfir-ai-preview/0.4.0a2}"
 [[ "$DEST" == /* && ! -e "$DEST" ]] || {
   echo 'Choose a new absolute destination; an existing installation will not be overwritten.' >&2; exit 1;
 }

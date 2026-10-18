@@ -4,7 +4,7 @@ An analyst workspace for reviewing **existing Velociraptor evidence** with a loc
 CLI, and MCP server. Optional Ollama analysis proposes structured findings that link back
 to the exact evidence rows used. Evidence-only review works without a model.
 
-**0.4.0a1 · alpha · private review candidate.** This is a narrowed edition of the internal
+**0.4.0a2 · alpha · private review candidate.** This is a narrowed edition of the internal
 0.3.1 project. The owner's lab has exercised installation, UI startup, existing-flow evidence
 retrieval and one tightly scoped Ollama analysis. Larger requests timed out; citation precision,
 broader coverage and analysis quality remain limitations. See [VALIDATION.md](VALIDATION.md).
@@ -33,9 +33,9 @@ The offline release includes a wheel with built UI assets and a CPython 3.12 Lin
 wheelhouse. It runs beside an existing installation on port **8766**, with separate state.
 
 ```bash
-sha256sum -c velociraptor-dfir-ai-preview-0.4.0a1.tar.gz.sha256
-tar -xzf velociraptor-dfir-ai-preview-0.4.0a1.tar.gz
-cd velociraptor-dfir-ai-preview-0.4.0a1
+sha256sum -c velociraptor-dfir-ai-preview-0.4.0a2.tar.gz.sha256
+tar -xzf velociraptor-dfir-ai-preview-0.4.0a2.tar.gz
+cd velociraptor-dfir-ai-preview-0.4.0a2
 bash install-preview.sh
 ```
 

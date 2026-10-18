@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from copy import deepcopy
 
 from vr_dfir.evidence.bundle import EvidenceBundle, now_iso
 from vr_dfir.version import __version__
@@ -20,10 +21,65 @@ OUTCOME_LABELS = {
 }
 
 CITATION_NOTE = (
-    "Citation validation confirms that each cited evidence ID exists in this investigation's "
-    "evidence bundle and was supplied to the analysis request that produced the finding. It "
-    "does not prove that the interpretation is correct."
+    "Model citations are checked against evidence IDs supplied to that model request. "
+    "Deterministic rule citations refer to persisted evidence rows, which need not have been "
+    "supplied to a model. Citation checks establish references, not that every cited row "
+    "supports the interpretation, that the interpretation is correct, or that a host is safe."
 )
+
+SEVERITIES = ("critical", "high", "medium", "low", "informational")
+
+
+def model_coverage_summary(coverage: dict, analysis: dict | None) -> dict:
+    """Describe recorded selections without equating them with successful inference.
+
+    Older analysis records contain prepared views, including views of failed or budget-skipped
+    requests. Keep them per analyst, never sum them into a unique-row or whole-bundle claim.
+    """
+    analysis = analysis or {}
+    views = analysis.get("model_input_coverage") or []
+    skipped = analysis.get("skipped_model_coverage") or []
+    requests = analysis.get("requests") or []
+    statuses = dict(Counter(r.get("status", "unknown") for r in requests))
+    not_requested = analysis.get("analysis_status") == "not_requested"
+    rows = []
+    for source in coverage.get("sources", []):
+        matches = [v for v in views if v.get("source_key") == source["source_key"]]
+        reasons = [s.get("reason") for s in skipped
+                   if s.get("source_key") == source["source_key"] and s.get("reason")]
+        for view in matches or [None]:
+            notes = list(reasons)
+            if view is None:
+                state = ("Not requested" if not_requested else "Skipped" if reasons else
+                         "Not selected" if views else "Not recorded")
+            else:
+                state = "Prepared input view"
+                if view.get("skipped_reason"):
+                    state = "Skipped"
+                    notes.append(view["skipped_reason"])
+                if view.get("reduced_for_budget"):
+                    notes.append("Reduced to fit the request budget")
+                if view.get("note"):
+                    notes.append(view["note"])
+            rows.append({
+                "source_key": source["source_key"], "full_name": source["full_name"],
+                "client_id": source["client_id"], "hostname": source.get("hostname"),
+                "analyst_id": view.get("analyst_id") if view else None,
+                "state": state, "rows_persisted": source["persisted_rows"],
+                "rows_selected": view.get("rows_supplied") if view else None,
+                "sampling": view.get("sampling") if view else None,
+                "fields": view.get("fields") if view else None,
+                "truncated_values": view.get("truncated_values") if view else None,
+                "notes": notes,
+            })
+    return {
+        "sources": rows, "request_attempts": len(requests), "request_statuses": statuses,
+        "note": ("Evidence retrieval and model input are separate. Rows selected are the "
+                 "recorded prepared views, per analyst; they may be sampled, projected or "
+                 "truncated. A prepared view is not proof of a successful request or that the "
+                 "server consumed every token. Failed and skipped attempts are listed "
+                 "separately. Missing selection metadata is unknown, not full coverage."),
+    }
 
 
 def coverage_summary(bundle: EvidenceBundle | None) -> dict:
@@ -89,6 +145,14 @@ def summarize_outcome(meta: dict, coverage: dict, analysis: dict | None) -> list
     sources = coverage.get("sources", [])
     with_rows = sum(1 for s in sources if s["result_status"] == "rows")
     statements.append(f"{len(sources)} source(s) in scope; {with_rows} returned rows.")
+    model = (analysis or {}).get("model_findings") or []
+    rules = (analysis or {}).get("deterministic_findings") or []
+    findings = model + rules
+    counts = Counter(f.get("severity", "unknown") for f in findings)
+    severities = ", ".join(f"{counts[s]} {s}" for s in (*SEVERITIES, "unknown") if counts[s])
+    statements.append(f"{len(findings)} accepted finding(s): {len(model)} model proposal(s), "
+                      f"{len(rules)} deterministic rule signal(s)."
+                      + (f" Severity: {severities}." if severities else ""))
     if coverage.get("gaps"):
         statements.append(f"{len(coverage['gaps'])} coverage gap(s) are listed below; they "
                           "limit what this report can say.")
@@ -105,17 +169,19 @@ def summarize_outcome(meta: dict, coverage: dict, analysis: dict | None) -> list
     if (analysis or {}).get("provider", {}).get("fake"):
         statements.append("FAKE MODEL output (test fixture) is included; it is not a real model "
                           "assessment.")
-    statements.append("The absence of accepted findings is not evidence that the target is "
-                      "clean; it reflects only the reviewed, retrieved data.")
+    statements.append(("This report is" if findings else "The absence of accepted findings is")
+                      + " not evidence that the target is clean; conclusions are limited "
+                      "to the retrieved evidence and the recorded analysis scope.")
     return statements
 
 
 def build_report(meta: dict, *, bundle: EvidenceBundle | None, analysis: dict | None,
                  plan: dict | None = None, checkpoint: dict | None = None) -> dict:
     coverage = coverage_summary(bundle)
-    det = list((analysis or {}).get("deterministic_findings", []))
-    model = list((analysis or {}).get("model_findings", []))
-    findings = model + det
+    det = deepcopy((analysis or {}).get("deterministic_findings", []))
+    model = deepcopy((analysis or {}).get("model_findings", []))
+    findings = sorted(model + det, key=lambda f: SEVERITIES.index(f["severity"])
+                      if f.get("severity") in SEVERITIES else len(SEVERITIES))
     cited, problems = _evidence_refs(bundle, findings)
     for f in findings:
         f["evidence_refs"] = [
@@ -161,6 +227,7 @@ def build_report(meta: dict, *, bundle: EvidenceBundle | None, analysis: dict | 
             "model_input_coverage", "skipped_model_coverage")},
         "summary_statements": summarize_outcome(meta, coverage, analysis),
         "coverage": coverage,
+        "model_coverage": model_coverage_summary(coverage, analysis),
         "findings": findings,
         "rejected_findings": [
             {"reasons": r.get("reasons"), "request_id": r.get("request_id"),

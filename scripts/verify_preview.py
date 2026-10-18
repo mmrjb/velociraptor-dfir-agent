@@ -73,7 +73,7 @@ def main():
         assert result.returncode == code, result.stdout + result.stderr
         return result.stdout
 
-    assert "0.4.0a1" in cli("--version")
+    assert "0.4.0a2" in cli("--version")
     assert json.loads(cli("doctor", "--json"))["result"] in ("ok", "warn")
     for removed in ("collect", "triage", "notebooks", "profiles", "demo"):
         cli(removed, code=2)
@@ -115,7 +115,7 @@ def main():
                     if time.monotonic() > deadline or server.poll() is not None:
                         raise
                     time.sleep(0.1)
-            assert status["backend_access"] == "read_only" and status["version"] == "0.4.0a1"
+            assert status["backend_access"] == "read_only" and status["version"] == "0.4.0a2"
             assert status["model"]["provider"] == "none"
             html = get("/").decode()
             asset = re.search(r'src="(/assets/[^\"]+\.js)"', html).group(1)

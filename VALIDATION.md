@@ -1,8 +1,23 @@
-# Validation — AI preview 0.4.0a1
+# Validation — AI preview 0.4.0a2 and earlier live checks
 
 This record concerns this narrowed candidate, not the internal 0.3.1 release. Automated tests
 use synthetic fixtures and fake providers. Operator-reported live lab checks are listed
 separately below; none of these checks establishes detection accuracy or model quality.
+
+## Report revision 0.4.0a2 (2026-10-18)
+
+- CPython 3.12.14: **157 passed, 1 skipped** after building the UI. The skipped test needs
+  a checkout accessible to `nobody`; parent-directory permissions were not changed.
+- New regression checks cover severity ordering and unchanged finding IDs, origin/severity
+  counts, prepared views versus failed/skipped requests, missing metadata, embedded fonts
+  with license text, and report rebuilding without model calls, backend reads or changes
+  to saved evidence/analysis. Existing hostile-text escaping and report sandbox checks pass.
+- Frontend: **30 tests passed**, TypeScript and production build passed. Ruff and installer
+  shell syntax passed. Runtime dependencies are unchanged from a1.
+- New Playwright coverage checks embedded font loading inside the report's actual sandbox.
+  Its CI result and offline release checks are recorded in the deliverable verification file.
+- These are synthetic checks; the a2 report has not yet been installed on the owner's server.
+  The live results below concern a1 and are retained as historical evidence.
 
 ## Completed in this workspace (2026-10-17)
 

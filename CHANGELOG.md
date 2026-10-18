@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0a2 — Clearer standalone reports (2026-10-18)
+
+- Show prepared model input separately from saved evidence, including row selection, field
+  projection, truncation and recorded request outcomes. Missing metadata stays unknown.
+- Sort findings by severity, preserve their identifiers, and summarize their origins/counts.
+- Distinguish model citation checks from deterministic citations; neither proves interpretation.
+- Embed Inter, Vazirmatn and JetBrains Mono with their font licenses in offline HTML reports.
+- Existing saved investigations can rebuild reports locally without inference or API reads.
+
 ## 0.4.0a1 — AI preview candidate (2026-10-17)
 
 - Narrow the internal 0.3.1 codebase to analysis of existing flows/hunts and saved bundles.

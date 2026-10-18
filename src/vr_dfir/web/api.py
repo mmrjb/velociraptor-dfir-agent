@@ -587,7 +587,7 @@ def create_app(settings: Settings, *, runtime: Runtime | None = None) -> FastAPI
             raise NotFoundError("The report has not been generated yet.")
         # The UI previews the HTML report in a sandboxed same-origin iframe; nothing else may
         # frame it and it can never run scripts.
-        headers = {"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; "
+        headers = {"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; font-src data:; "
                                               "img-src 'none'; script-src 'none'; "
                                               "frame-ancestors 'self'; sandbox",
                    "X-Frame-Options": "SAMEORIGIN"}

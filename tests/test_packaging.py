@@ -26,6 +26,7 @@ def test_wheel_contents(tmp_path):
     assert "vr_dfir/data/schemas/profile.schema.json" in names
     assert "vr_dfir/data/THIRD_PARTY_NOTICES.md" in names
     assert "vr_dfir/data/NOTICE" in names
+    assert "vr_dfir/reporting/font_notices.txt" in names
     assert not any("node_modules" in n or n.endswith((".env", ".pem")) for n in names)
     assert not any("api_client" in n for n in names)
     # Synthetic fixtures and the fake server/model live in tests/ only.

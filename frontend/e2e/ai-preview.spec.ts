@@ -33,3 +33,25 @@ test('local model proposals stay distinct from evidence and no backend writes ar
   expect(response.status()).toBe(422);
   await expect(page.getByRole('navigation').getByRole('link')).toHaveCount(3);
 });
+
+test('report preview separates model coverage and loads embedded fonts in its sandbox', async ({ page, request }) => {
+  await analyzeFlow(page, false);
+  const id = page.url().split('/').at(-1)!;
+  await page.goto(`/reports?investigation=${id}&format=html`);
+  const report = page.frameLocator('iframe[title="HTML report preview"]');
+  await expect(report.getByRole('heading', { name: 'Model input coverage', exact: true })).toBeVisible();
+  await expect(report.getByRole('heading', { name: 'Evidence coverage', exact: true })).toBeVisible();
+  const frame = await page.locator('iframe[title="HTML report preview"]').contentFrame();
+  const loaded = await frame.locator('body').evaluate(async () => {
+    const samples = [['Inter Variable', 'Review'], ['Vazirmatn Variable', 'مدیر سیستم'], ['JetBrains Mono Variable', 'evidence_id']];
+    return Promise.all(samples.map(async ([family, text]) => {
+      const fonts = await document.fonts.load(`14px "${family}"`, text);
+      return fonts.length > 0 && fonts.every(font => font.status === 'loaded');
+    }));
+  });
+  expect(loaded).toEqual([true, true, true]);
+  const response = await request.get(`/api/v1/investigations/${id}/report?format=html`);
+  expect(response.headers()['content-security-policy']).toContain('font-src data:');
+  expect(response.headers()['content-security-policy']).toContain("script-src 'none'");
+  await page.screenshot({ path: 'test-results/report-preview.png', fullPage: true });
+});
