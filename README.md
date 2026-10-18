@@ -5,10 +5,10 @@ CLI, and MCP server. Optional Ollama analysis proposes structured findings that 
 to the exact evidence rows used. Evidence-only review works without a model.
 
 **0.4.0a1 · alpha · private review candidate.** This is a narrowed edition of the internal
-0.3.1 project. Installation, API/model availability probes and UI startup have passed on
-the owner's Ubuntu 24.04 server. Real-evidence retrieval and real-model analysis acceptance
-checks remain open; see
-[VALIDATION.md](VALIDATION.md). A project license has not been selected. Keep this candidate
+0.3.1 project. The owner's lab has exercised installation, UI startup, existing-flow evidence
+retrieval and one tightly scoped Ollama analysis. Larger requests timed out; citation precision,
+broader coverage and analysis quality remain limitations. See [VALIDATION.md](VALIDATION.md).
+A project license has not been selected. Keep this candidate
 private until the publication checks in [PUBLISHING.md](PUBLISHING.md) are resolved.
 
 ## What you can do

@@ -1,7 +1,8 @@
 # Validation — AI preview 0.4.0a1
 
-This record concerns this narrowed candidate, not the internal 0.3.1 release. Tests use
-synthetic fixtures and fake providers; they do not measure detection accuracy or model quality.
+This record concerns this narrowed candidate, not the internal 0.3.1 release. Automated tests
+use synthetic fixtures and fake providers. Operator-reported live lab checks are listed
+separately below; none of these checks establishes detection accuracy or model quality.
 
 ## Completed in this workspace (2026-10-17)
 
@@ -46,7 +47,7 @@ for source commit `58df886e7fbfc06fabce1af7892b93bc8cf118a8`, on Ubuntu 24.04 x8
 This CI run does not use the owner's API credentials or a real model and is not an accuracy
 or production-readiness claim. The earlier local browser download limitation is superseded
 by the automated browser run above. Destination-server startup is recorded below;
-detailed manual visual and real-analysis acceptance remain open.
+detailed manual visual and broader real-analysis acceptance remain open.
 
 ## Reported on the destination server (2026-10-17)
 
@@ -64,17 +65,52 @@ the assistant against that server:
 - `/api/v1/status` returned `ok: true` and version `0.4.0a1`. The owner confirmed the UI
   opened and was tested; detailed visual checks were not recorded.
 
-This establishes installation, startup and connectivity. It does not establish successful
-real-evidence retrieval, real Ollama inference, citation quality or detection accuracy.
-No destination-server evidence, credential files, host inventory or screenshots are included.
+This establishes installation, startup and connectivity. The later live retrieval and
+bounded inference checks are recorded below. No destination-server evidence, credential
+files, host inventory or screenshots are included.
+
+## Reported live evidence and Ollama checks (2026-10-17; reviewed 2026-10-18)
+
+The owner supplied CLI output from the installed release. Only aggregate outcomes and
+limitations are recorded here; real rows, identifiers, account names and model responses
+remain outside the repository.
+
+- Existing-flow retrieval from the real Velociraptor server: all 10 sources read to
+  completion, 2,114 rows persisted, evidence-only outcome, one deterministic review signal.
+  An empty OS-specific package source was reported as a verified precondition skip.
+- A larger Ollama bundle analysis failed: all five attempted requests exceeded the
+  configured 120-second timeout. The investigation remained partial with its saved
+  evidence and deterministic finding available; no model finding was produced.
+- A direct, small JSON request to `qwen2.5:1.5b` completed in about 9.21 seconds, including
+  6.28 seconds of model loading. The server reported Ollama 0.40.3, six vCPUs and about
+  7.7 GiB RAM. This tiny request is not a throughput benchmark for longer prompts.
+- A smaller analysis-only profile selected the Processes source, at most five rows,
+  a 5,000-character input cap, a 512-token output cap and one model request. The CLI run
+  used a 4,096-token context and a 300-second request timeout. The logged request contained
+  3,783 characters; analysis completed with two accepted model proposals, one deterministic
+  finding and zero rejected proposals. End-to-end duration was not recorded.
+- The two model proposals were informational process descriptions. Their process-name
+  observations matched the two cited rows subsequently displayed by the owner. Both
+  proposals cited the same pair of rows, including a row unnecessary for the individual
+  observation: citation existence checks do not establish precise or sufficient support.
+  These outputs do not demonstrate useful threat discovery or establish that a host is safe.
+- The deterministic finding concerned an additional UID 0 account in persisted Users
+  evidence. The small model profile did not include Users, so that finding was not an
+  AI detection and its omission from model proposals is not a tested model miss.
+
+All 2,114 rows remained in the saved bundle. That count is evidence storage coverage;
+the small model test evaluated only its selected process view, not all saved rows.
+Broader quality, benign/malicious adjudication and exact claim-to-row support remain open.
 
 ## Pending acceptance
 
-- Existing-flow/hunt evidence retrieval against the real Velociraptor 0.76.5 API, beyond
-  the successful availability probe. The source retains the hunts() compatibility fix
-  from the owner's internal release; local tests only emulate API shapes.
-- Real Ollama inference on the owner's existing model, including quality, speed and citations.
-  A successful `doctor --probe-model` establishes model availability, not usable analysis.
+- Real hunt retrieval, larger datasets and independent comparison of retrieved source
+  counts/rows with the original Velociraptor GUI. One existing-flow read succeeded.
+- Useful real-model analysis across broader evidence: latency, sampling coverage, precision
+  of individual claim-to-row references and human adjudication. The small process-only
+  smoke test succeeded; the earlier larger workload timed out on this CPU host.
+- Retry after a model outage with evidence-ID/hash comparisons and manual report/export
+  review. Successful source retrieval and model inference do not complete these checks.
 - A real interactive MCP client connected to this installed preview.
 - Detailed manual visual review and other CPU architectures.
 - Independent code-provenance review, owner license selection, public publication.
