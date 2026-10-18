@@ -1,24 +1,38 @@
-# Publication status
+# Publication and release status
 
-This candidate is for a **private repository** and lab review. It is not yet a public release.
-A project license has not been selected. NOTICE and the private-package classifier remain.
-Do not describe it as a licensed fork, production-ready product, verified compromise detector,
-or complete replacement for Velociraptor's UI.
+The repository is public. Version 0.4.0a2 is experimental software for reviewing existing
+Velociraptor evidence through GUI, CLI and MCP interfaces.
 
-Before making the repository public, the owner must select the license and confirm the
-rights to all project code. The inherited source record says no upstream source was copied;
-this scope-reduction work is not an independent provenance or legal audit. The upstream
-mgreen27/mcp-velociraptor licensing status recorded in the original project is unresolved.
-Keep attribution and bundled dependency notices, and resolve provenance questions before
-public redistribution. A new repository or rewritten history does not establish those rights.
+## Licensing
 
-Review the staged tree for credentials, evidence, host/client inventories, private notebook
-exports, runtime logs, model requests, archives and generated screenshots. Only synthetic
-fixtures belong in source tests. Publish source from a clean reviewed commit, without the
-internal project's history or input release archive. Built distributions may include generated
-UI assets and notices, but no demo fixtures or credentials.
+A project open-source license has not been selected. Public source visibility does not
+select a license or establish redistribution rights. See NOTICE and ACKNOWLEDGEMENTS.md.
+The private-package classifier in pyproject.toml prevents accidental PyPI publication;
+it does not describe the repository's visibility.
 
-Complete the real API/Ollama/MCP/browser checks in VALIDATION.md. Once the license and scope
-are settled, label the first release **alpha / public preview**, list tested environments,
-and keep known limits visible. A LinkedIn announcement can link that reviewed release after
-it exists and show only synthetic or expressly approved screenshots.
+The inherited provenance record states that project modules were implemented separately
+from mgreen27/mcp-velociraptor, with compatibility at the interface level. That upstream
+repository had no license file at the recorded review. This record is not an independent
+provenance audit. Keep attribution and review any upstream-derived material before
+redistribution. A new repository or rewritten history does not establish those rights.
+
+## Public materials
+
+Describe the implemented evidence-review workflow, shared interfaces, saved evidence and
+report exports. Keep model output framed as proposals for human review. Performance and
+citation quality remain under evaluation; VALIDATION.md distinguishes automated tests from
+operator-reported live checks.
+
+Use only synthetic or approved redacted illustrations. Keep credentials, real evidence,
+host/client inventories, private notebook exports, runtime logs and model requests out of
+source, screenshots and release artifacts.
+
+## Packaged releases
+
+The lab's complete offline bundle has not been attached to a GitHub Release. The README
+provides a source-install path available from this public repository.
+
+Before publishing a tagged binary distribution, select the project license, review code
+provenance and the staged tree, preserve dependency notices, and verify the extracted
+artifact. Record the source commit, checksums, tested environments and known limits.
+The current PyPI upload guard remains intentional.

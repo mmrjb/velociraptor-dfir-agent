@@ -6,7 +6,11 @@ for a release installation. Python's venv/ensurepip support must already be inst
 The source declares Python >=3.10; CI covers 3.10 through 3.13. The supplied offline
 wheelhouse is specifically for CPython 3.12 on Linux x86_64.
 
-## Offline release
+## Offline bundle
+
+The complete offline bundle used in lab validation is not attached to a GitHub Release.
+For installation directly from this public repository, use the source instructions in
+README.md. This section applies when an administrator has provided the complete bundle.
 
 Transfer the archive and its `.sha256` file to a directory owned by your non-root application
 account. Check the checksum and extract as in README.md. From the extracted directory run:
@@ -174,7 +178,7 @@ cd ..
 
 This development path needs a package index and npm registry. Build on an executable
 filesystem; `scripts/frontend.sh` supports hosts where the checkout is mounted noexec.
-There is no public PyPI release for this private candidate.
+The project is not published on PyPI. Install from this repository or a complete offline bundle.
 
 ## Stop or remove
 

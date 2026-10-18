@@ -1,84 +1,146 @@
-# Velociraptor DFIR Agent — AI preview
+# Velociraptor DFIR Agent
 
-An analyst workspace for reviewing **existing Velociraptor evidence** with a local GUI,
-CLI, and MCP server. Optional Ollama analysis proposes structured findings that link back
-to the exact evidence rows used. Evidence-only review works without a model.
+**Review existing endpoint evidence through a GUI, CLI, or MCP interface.**
 
-**0.4.0a2 · alpha · private review candidate.** This is a narrowed edition of the internal
-0.3.1 project. The owner's lab has exercised installation, UI startup, existing-flow evidence
-retrieval and one tightly scoped Ollama analysis. Larger requests timed out; citation precision,
-broader coverage and analysis quality remain limitations. See [VALIDATION.md](VALIDATION.md).
-A project license has not been selected. Keep this candidate
-private until the publication checks in [PUBLISHING.md](PUBLISHING.md) are resolved.
+[![CI](https://github.com/mmrjb/velociraptor-dfir-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/mmrjb/velociraptor-dfir-agent/actions/workflows/ci.yml)
+[Installation](INSTALL.md) · [CLI](docs/cli.md) · [MCP](docs/operations.md#mcp) · [Validation](VALIDATION.md) · [Architecture](docs/architecture.md)
 
-## What you can do
+An independent analyst workspace that uses Velociraptor as its backend. Browse existing
+results, inspect findings beside their source rows, and export a report. Optional local
+Ollama analysis adds structured proposals; evidence-only review works without a model.
 
-- Browse organizations, endpoints, existing flows and hunts using the Velociraptor API.
-- Review an evidence scope before retrieving existing results, or import a versioned evidence bundle.
-- Read findings beside their source rows, inspect full values, filter and page evidence,
-  and save a separate analyst review status.
-- Use optional, bounded Ollama requests; reject fabricated citations and keep evidence
-  available when a model fails. Explanations remain separate from the original finding.
-- Export JSON, Markdown, and self-contained HTML reports; resume interrupted retrieval.
-- Use the same investigation pipeline through GUI, CLI, or 16 MCP tools.
+**Version 0.4.0a2 · Experimental project.** Installation, existing-flow retrieval and report
+generation have been exercised on Ubuntu 24.04. Model quality, citation precision and
+performance on larger inputs are still being evaluated.
 
-This edition has **no collection launch, hunt creation, response actions, raw VQL interface,
-Notebook viewer, or Master Triage dashboard**. It is a separate application using the
-Velociraptor backend. There is no demo mode or bundled model. Test fixtures are synthetic
-and live only in the source test directory.
+## Why this project
 
-## Start with a saved evidence bundle
+An investigation needs a clear path from an observation to the evidence behind it.
+This workspace keeps source rows, coverage, provenance and findings together, and makes
+the same investigation pipeline available through three interfaces.
 
-The offline release includes a wheel with built UI assets and a CPython 3.12 Linux x86_64
-wheelhouse. It runs beside an existing installation on port **8766**, with separate state.
+- **GUI:** browse existing results, review evidence scope, inspect full row values and
+  record analyst review status.
+- **CLI:** retrieve and review existing flows or hunts, import saved bundles, resume
+  retrieval and export reports.
+- **MCP:** expose the shared investigation service through 16 tools.
+- **Evidence:** preserve row references, hashes, source coverage and collection provenance.
+- **Analysis:** combine deterministic review signals with optional bounded Ollama requests.
+  Saved evidence remains available when the model fails.
+- **Reports:** export JSON, Markdown and standalone HTML with embedded fonts. Reports
+  separate retrieved evidence from prepared model input and show findings by severity.
 
-```bash
-sha256sum -c velociraptor-dfir-ai-preview-0.4.0a2.tar.gz.sha256
-tar -xzf velociraptor-dfir-ai-preview-0.4.0a2.tar.gz
-cd velociraptor-dfir-ai-preview-0.4.0a2
-bash install-preview.sh
-```
+## Typical workflow
 
-Run the commands printed by the installer, then open `http://127.0.0.1:8766/` and choose
-**Import Evidence**. The supported import is this project's version 1 evidence bundle
-(`manifest.json` plus `sources/*.jsonl`), rather than an arbitrary Velociraptor export ZIP.
-See [INSTALL.md](INSTALL.md) for remote access and source installation.
+1. Select an existing Velociraptor flow or hunt, or import a saved evidence bundle.
+2. Review the scope and retrieve the existing results.
+3. Examine rule signals and optional model proposals alongside their cited rows.
+4. Save analyst review decisions and export the report.
 
-## Connect your backend and model
+This edition reads existing backend evidence. Collection launching, hunt creation, endpoint
+response, arbitrary VQL, notebook viewing and Master Triage are outside its scope.
+There is no demo mode or bundled model. Synthetic fixtures live under `tests/` only.
 
-Use an administrator-provided API credential scoped for reading existing results. Set
-`VELOCIRAPTOR_API_CONFIG`, the organization, and the already installed Ollama model in your
-private environment file; see [CONFIGURATION.md](CONFIGURATION.md). Credentials stay on the
-application host. A remote Ollama address sends bounded evidence views to that address.
+## Install from source
+
+Use Python 3.12 with venv support and Node.js 22.12+ (or a compatible version listed in
+`frontend/package.json`). The source package supports Python 3.10–3.13 in CI.
 
 ```bash
-vr-dfir doctor --env-file /absolute/path/preview.env --probe --probe-model
-vr-dfir hunts list --org-id root --env-file /absolute/path/preview.env
-vr-dfir analyze flow --client-id C.EXAMPLE01 --flow-id F.EXAMPLE01 --org-id root \
-  --env-file /absolute/path/preview.env
-vr-dfir analyze bundle --input /absolute/path/evidence --no-llm \
-  --env-file /absolute/path/preview.env
+git clone https://github.com/mmrjb/velociraptor-dfir-agent.git
+cd velociraptor-dfir-agent
+
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e '.[ui,mcp]'
+
+cd frontend
+npm ci
+npm run build
+cd ..
+
+cp .env.example .env
+.venv/bin/vr-dfir ui --env-file "$PWD/.env" --host 127.0.0.1 --port 8766
 ```
 
-Use the executable inside the preview virtualenv to avoid selecting an older installed
-`vr-dfir`. IDs above are placeholders. Findings prioritize human review; citation checks
-establish row references, not the truth of a model's interpretation or a host's safety.
+Open **http://127.0.0.1:8766/**. The initial configuration has model analysis disabled and
+no API credential configured. Configure an existing server using [CONFIGURATION.md](CONFIGURATION.md),
+or import a version 1 bundle produced by this project (`manifest.json` and `sources/*.jsonl`).
+An arbitrary Velociraptor export ZIP is not this bundle format.
 
-[CLI guide](docs/cli.md) · [GUI guide](docs/ui.md) · [MCP and operations](docs/operations.md) ·
-[Evidence format](docs/evidence.md) · [Architecture](docs/architecture.md) ·
-[Attribution](ACKNOWLEDGEMENTS.md)
+Source installation requires access to Python and npm package registries. The complete
+offline bundle used for lab validation has not been attached to a GitHub Release.
+[INSTALL.md](INSTALL.md) covers offline bundles, SSH access, systemd and upgrades.
+
+## Connect Velociraptor and Ollama
+
+Configure your private `.env` using [.env.example](.env.example):
+
+- `VELOCIRAPTOR_API_CONFIG`: path to an administrator-provided API credential scoped for reads.
+- `VELOCIRAPTOR_ORG_ID`: the organization to review.
+- `VELOCIRAPTOR_MODEL_PROVIDER`: `none` or `ollama`.
+- `OLLAMA_HOST` and `OLLAMA_MODEL`: an approved endpoint and an already installed model.
+
+A remote Ollama endpoint receives the selected evidence view. Keep configuration, credentials,
+investigation state and real evidence outside version control.
+
+```bash
+.venv/bin/vr-dfir doctor --env-file "$PWD/.env" --probe --probe-model
+.venv/bin/vr-dfir hunts list --org-id root --env-file "$PWD/.env"
+
+# Replace the example identifiers with an existing client and flow.
+.venv/bin/vr-dfir analyze flow --env-file "$PWD/.env" \
+  --org-id root --client-id C.EXAMPLE01 --flow-id F.EXAMPLE01 --no-llm
+```
+
+For local bundle review:
+
+```bash
+.venv/bin/vr-dfir analyze bundle --input /absolute/path/evidence \
+  --env-file "$PWD/.env" --no-llm
+```
+
+Use the executable inside this installation's virtualenv to select the intended version.
+
+## Validation and limits
+
+[Validation record](VALIDATION.md) · [Successful CI run](https://github.com/mmrjb/velociraptor-dfir-agent/actions/runs/39107266776)
+
+| Area | Evidence so far |
+|---|---|
+| Automated checks | Python 3.10–3.13, frontend tests, installed-wheel checks and three Chromium journeys in CI |
+| Destination installation | Ubuntu 24.04, Python 3.12, loopback UI and a2 report regeneration |
+| Live backend | Existing-flow retrieval from Velociraptor 0.76.5 |
+| Live model | One small CPU-based Ollama analysis; larger requests timed out |
+| MCP | Stdio protocol and tool checks; broader interactive-client acceptance remains open |
+
+A saved bundle can contain many more rows than the model input. Review the report's model
+input coverage and request outcomes. Citation checks establish row references; analysts
+must assess whether those rows support the interpretation. Findings prioritize human review
+and do not establish compromise or a clean host.
 
 ## Project layout
 
-| Path | Purpose |
+| Path | Responsibility |
 |---|---|
-| `frontend/src/` | React GUI, evidence views and component tests |
-| `src/vr_dfir/` | Shared investigation pipeline, Velociraptor reads, analysis and reports; GUI API, CLI and MCP adapters |
+| `src/vr_dfir/` | Shared pipeline, API reads, analysis, evidence and reporting |
+| `frontend/src/` | React analyst workspace |
 | `schemas/` | Evidence and analysis contracts |
-| `tests/` | Synthetic fixtures, API/CLI/MCP, analysis and packaging checks |
-| `scripts/` | Offline release build, isolated installer and release verification |
-| `docs/` | Architecture, usage, operations and optional systemd service template |
-| `.github/workflows/` | Python matrix, frontend, packaging and Chromium CI |
+| `tests/` | Synthetic fixtures and regression tests |
+| `scripts/` | Offline build, installation and verification |
+| `docs/` | Usage, architecture and operations |
 
-For a persistent server installation, follow the optional
-[systemd setup](INSTALL.md#optional-systemd-service) after installing the isolated preview.
+## Attribution and licensing
+
+Developed by [Mohammadmahdi Rajabzadeh](https://github.com/mmrjb).
+Velociraptor provides the backend. Matthew Green's
+[MCP bridge](https://github.com/mgreen27/mcp-velociraptor) inspired interface conventions
+and parts of the analyst workflow. This is an independent project.
+
+A project open-source license has not been selected. Public repository visibility does
+not change the licensing status described in [NOTICE](NOTICE). Preserve the attribution in
+[ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md) and the bundled
+[third-party notices](THIRD_PARTY_NOTICES.md).
+
+Questions and feedback about installation, evidence review or reporting are welcome in
+[Issues](https://github.com/mmrjb/velociraptor-dfir-agent/issues). Use synthetic or redacted
+examples and keep credentials and real evidence private.

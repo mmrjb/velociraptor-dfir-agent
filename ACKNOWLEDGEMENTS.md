@@ -13,8 +13,8 @@ establish redistribution rights; see PUBLISHING.md. It is not an official Veloci
 
 [Velociraptor](https://github.com/Velocidex/velociraptor) is developed by Velocidex / Rapid7.
 The application uses the `pyvelociraptor` API client and requires a separately administered
-server. The inherited project records API-shape research against Velociraptor source and
-synthetic fixtures; the packaged preview still needs live-server acceptance checks.
+server. The project records API-shape research against Velociraptor source, synthetic fixtures and
+operator-reported live lab checks. See VALIDATION.md for the tested paths and remaining limits.
 
 Bundled frontend and offline Python dependency notices are in THIRD_PARTY_NOTICES.md.
 Original project licensing remains pending as described in NOTICE.
