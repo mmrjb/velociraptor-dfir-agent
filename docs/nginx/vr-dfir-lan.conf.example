@@ -1,0 +1,74 @@
+# Include once from nginx's http context (Ubuntu: /etc/nginx/conf.d/*.conf).
+# Replace EVERY 192.0.2.10 with the server's actual LAN IPv4 address.
+# Both application backends stay on 127.0.0.1. TLS and authentication live here.
+
+# Validate the browser's original origin BEFORE translating it for the backend.
+map "$http_origin|$server_port" $vr_origin_allowed {
+    default 0;
+    "~^[|]" 1;
+    "https://192.0.2.10:8765|8765" 1;
+    "https://192.0.2.10:8766|8766" 1;
+}
+
+map $http_origin $vr_backend_origin {
+    "" "";
+    default "http://127.0.0.1:$server_port";
+}
+
+# Cookies do not isolate ports. Give each UI its own browser cookie name, then
+# pass only that UI's session back to the application under its original name.
+map "$server_port:$http_cookie" $vr_backend_cookie {
+    default "";
+    "~^8765:(?:.*;[ ]*)?vrdfir_session_8765=(?<vr_sid_a>[^;]*)"
+        "vrdfir_session=$vr_sid_a";
+    "~^8766:(?:.*;[ ]*)?vrdfir_session_8766=(?<vr_sid_b>[^;]*)"
+        "vrdfir_session=$vr_sid_b";
+}
+
+map $upstream_http_set_cookie $vr_browser_cookie {
+    default $upstream_http_set_cookie;
+    "~^vrdfir_session=(?<vr_cookie_rest>.*)$"
+        "vrdfir_session_$server_port=$vr_cookie_rest; Secure";
+}
+
+server {
+    listen 192.0.2.10:8766 ssl;
+    # Optional: uncomment ONLY when the separate internal 0.3.x UI is running.
+    # listen 192.0.2.10:8765 ssl;
+    server_name 192.0.2.10;
+
+    ssl_certificate     /etc/nginx/vr-dfir-tls/server.crt;
+    ssl_certificate_key /etc/nginx/vr-dfir-tls/server.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    auth_basic "Velociraptor DFIR";
+    auth_basic_user_file /etc/nginx/vr-dfir.htpasswd;
+
+    client_max_body_size 64m;
+
+    if ($host != "192.0.2.10") {
+        return 421;
+    }
+    if ($vr_origin_allowed = 0) {
+        return 403;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:$server_port;
+        proxy_http_version 1.1;
+        proxy_set_header Host "127.0.0.1:$server_port";
+        proxy_set_header Origin $vr_backend_origin;
+        proxy_set_header Cookie $vr_backend_cookie;
+        # Authenticate at nginx; do not pass the gateway password to the app.
+        proxy_set_header Authorization "";
+        proxy_set_header Connection "";
+
+        proxy_hide_header Set-Cookie;
+        add_header Set-Cookie $vr_browser_cookie always;
+
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+        proxy_buffering off;
+    }
+}

@@ -46,6 +46,15 @@ Open `http://127.0.0.1:8766/`. Replace USER and SERVER with your SSH account and
 Keep the app in an existing terminal multiplexer session, or use the optional systemd
 service below, if it must survive a disconnected SSH terminal.
 
+## Optional direct LAN access without an SSH tunnel
+
+An administrator can install an [authenticated Nginx HTTPS gateway](docs/lan-access.md)
+on the same server. It serves the preview on the server's LAN IPv4 address at port 8766,
+and optionally an already installed internal UI at port 8765. The application services
+keep their existing loopback listeners. The guide includes TLS, password setup, firewall
+scope, session isolation, verification and rollback, with a reusable
+[Nginx configuration template](docs/nginx/vr-dfir-lan.conf.example).
+
 ## Enable live reads and AI
 
 Edit the new `preview.env` as described in CONFIGURATION.md. Grant the application account
@@ -98,7 +107,8 @@ If your installation path or account differs, edit a copy of the unit to match i
 installing. This unit has a distinct name from the internal `velociraptor-dfir-agent` service.
 After changing `preview.env`, run `sudo systemctl restart vr-dfir-ai-preview`.
 Inspect startup errors with `sudo journalctl -u vr-dfir-ai-preview -n 60 --no-pager`.
-Use the SSH tunnel described above to open the UI from a workstation.
+Use the SSH tunnel described above or the optional [LAN HTTPS gateway](docs/lan-access.md)
+to open the UI from a workstation.
 
 ## Upgrade the administrator-managed preview from 0.4.0a1
 

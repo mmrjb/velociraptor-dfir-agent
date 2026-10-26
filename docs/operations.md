@@ -5,6 +5,10 @@ independently. Only configure approved API/model endpoints and retain private fi
 There is no automatic installation, collection, model download, or public exposure on launch.
 An optional [systemd setup](../INSTALL.md#optional-systemd-service) keeps the isolated UI
 running across SSH disconnects and server restarts. The installer does not register it.
+For workstation access without a tunnel, an administrator can install the optional
+[authenticated LAN HTTPS gateway](lan-access.md). It preserves the application's loopback
+listener and adds TLS, gateway authentication and separate browser cookies for ports
+8765/8766. This does not add application roles or separate analyst workspaces.
 
 ## MCP
 

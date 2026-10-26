@@ -3,7 +3,7 @@
 **Review existing endpoint evidence through a GUI, CLI, or MCP interface.**
 
 [![CI](https://github.com/mmrjb/velociraptor-dfir-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/mmrjb/velociraptor-dfir-agent/actions/workflows/ci.yml)
-[Installation](INSTALL.md) · [CLI](docs/cli.md) · [MCP](docs/operations.md#mcp) · [Validation](VALIDATION.md) · [Architecture](docs/architecture.md)
+[Installation](INSTALL.md) · [LAN HTTPS access](docs/lan-access.md) · [CLI](docs/cli.md) · [MCP](docs/operations.md#mcp) · [Validation](VALIDATION.md) · [Architecture](docs/architecture.md)
 
 An independent analyst workspace that uses Velociraptor as its backend. Browse existing
 results, inspect findings beside their source rows, and export a report. Optional local
@@ -70,6 +70,10 @@ An arbitrary Velociraptor export ZIP is not this bundle format.
 Source installation requires access to Python and npm package registries. The complete
 offline bundle used for lab validation has not been attached to a GitHub Release.
 [INSTALL.md](INSTALL.md) covers offline bundles, SSH access, systemd and upgrades.
+For direct access from another computer without an SSH tunnel, an administrator can set up
+the optional [authenticated Nginx HTTPS gateway](docs/lan-access.md). The application stays
+on loopback; the gateway can serve the preview on port 8766 and an existing internal UI on
+port 8765 with separate browser session cookies.
 
 ## Connect Velociraptor and Ollama
 

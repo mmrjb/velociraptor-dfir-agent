@@ -1,8 +1,9 @@
 # GUI workflow
 
-Open the loopback UI through the SSH tunnel described in INSTALL.md. The initial page is
-Investigations, followed by Findings & Evidence and Reports. Pick the organization in the
-header before reading live evidence.
+Open the loopback UI through the SSH tunnel described in INSTALL.md, or use an
+administrator-configured [authenticated LAN HTTPS gateway](lan-access.md). The initial
+page is Investigations, followed by Findings & Evidence and Reports. Pick the organization
+in the header before reading live evidence.
 
 1. Choose **New Investigation**. Select an existing endpoint collection or existing hunt.
    Search for the endpoint or paste its client/flow IDs. Review the source scope and analysis
@@ -20,8 +21,9 @@ header before reading live evidence.
 6. Save an analyst review note, request an optional cited explanation, or export a report.
 
 Opening a report does not ask the model to produce a new analysis. Evidence and model text
-are rendered as untrusted content. This is a local single-user analyst application; keep it
-on loopback and use SSH, rather than exposing it directly on a public address.
+are rendered as untrusted content. This is a local single-user analyst application; keep
+the application on loopback. Remote access uses SSH or the optional authenticated HTTPS
+gateway. Gateway logins share the application's workspace and do not provide per-user roles.
 
 Browser acceptance cases are in `frontend/e2e/`. Start the test-only server with the command
 in CONTRIBUTING.md. Both Chromium journeys passed against the installed wheel on GitHub
