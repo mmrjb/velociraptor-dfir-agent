@@ -432,3 +432,445 @@ export interface Explanation {
   deterministic?: Record<string, unknown>;
 }
 
+
+// ---------------------------------------------------------------- summary-first views (0.5)
+
+export type ViewState = "ready" | "building" | "evidence_changing" | "no_evidence" | "failed" | "cancelled" | "stale";
+
+export interface ViewPending {
+  state: Exclude<ViewState, "ready">;
+  progress?: { rows_done: number; rows_total: number; elapsed_seconds: number };
+  error?: string;
+}
+
+export interface ViewTarget {
+  view: "evidence" | "hosts" | "coverage" | "timeline" | "run" | "report" | "changes";
+  filters?: Record<string, string>;
+  mode?: "findings" | "rows";
+}
+
+export interface Metric {
+  id: string;
+  label: string;
+  unit: string;
+  value: number | null;
+  total?: number | null;
+  detail: string;
+  breakdown?: Record<string, number>;
+  target: ViewTarget;
+}
+
+export interface ChartSegment {
+  key: string;
+  label: string;
+  count: number;
+  filter: Record<string, string>;
+}
+
+export interface ChartBar extends ChartSegment {
+  secondary?: string;
+}
+
+export interface HistogramBucket {
+  start: string;
+  end: string;
+  from_us: number;
+  to_us: number;
+  count: number;
+  measured: boolean;
+}
+
+export interface Chart {
+  id: "severity" | "hosts" | "events" | "sources";
+  kind: "donut" | "bars" | "histogram";
+  title: string;
+  unit: string;
+  state: "ready" | "not_ready";
+  note?: string | null;
+  total?: number | null;
+  segments?: ChartSegment[];
+  alternate?: { title: string; unit: string; segments: ChartSegment[] };
+  bars?: ChartBar[];
+  more?: number;
+  buckets?: HistogramBucket[];
+  bucket?: { width_us: number; label: string };
+  complete?: boolean;
+  untimed?: number;
+  link?: ViewTarget;
+}
+
+export interface SourceBrief {
+  source_key: string;
+  label: string;
+  full_name: string;
+  domain: string;
+  client_id: string;
+  hostname: string;
+  org_id: string;
+  flow_id: string;
+  hunt_id: string | null;
+  rows: number;
+  state: string;
+  state_label: string;
+  read_status: string;
+  result_status: string;
+  stop_reason: string | null;
+  collected_at: string | null;
+  age_days: number | null;
+  stale: boolean;
+  timed_rows: number;
+  untimed_rows: number;
+  counts_only: boolean;
+  mapping?: MappingInfo;
+  cited_rows?: number;
+}
+
+export interface MappingInfo {
+  id: string;
+  label: string;
+  basis: string;
+  configured: boolean;
+  version: string;
+}
+
+export interface AttentionItem {
+  finding_id: string;
+  title: string;
+  severity: string;
+  origin: string;
+  review_state: ReviewState;
+  review_label: string;
+  evidence_count: number;
+  hosts: string[];
+}
+
+// CONTRACT: overview
+export interface Overview {
+  state: "ready";
+  scope: { investigation_id: string; title: string; mode: string; org_ids: string[]; hosts: { client_id: string; hostname: string }[]; synthetic: boolean; note: string };
+  status: Record<string, string | null>;
+  findings_ready: boolean;
+  metrics: Metric[];
+  charts: Chart[];
+  attention: AttentionItem[];
+  coverage: {
+    sources_total: number;
+    states: Record<string, number>;
+    state_labels: Record<string, string>;
+    captured_from: string | null;
+    captured_to: string | null;
+    stale_sources: number;
+    stale_after_days: number;
+    rows: number;
+    sources: SourceBrief[];
+    retrieval_status: string | null;
+  };
+  next_action: { label: string; target: ViewTarget | null };
+  index: { built_at: string; normalizer_version: string };
+}
+
+export interface ColumnPlanItem {
+  key: string;
+  label: string;
+  kind: string;
+  role?: string;
+  virtual?: boolean;
+}
+
+export interface TableSource {
+  source_key: string;
+  full_name: string;
+  label: string;
+  domain: string;
+  mapping: MappingInfo;
+  columns: { default: ColumnPlanItem[]; other: ColumnPlanItem[] };
+  fields: Record<string, string>;
+  client_id: string;
+  hostname: string;
+  flow_id: string;
+  org_id: string;
+  state: string;
+  state_label: string;
+  rows: number;
+  read_status: string;
+  result_status: string;
+  stop_reason: string | null;
+  available_rows: number | null;
+}
+
+export interface RowRecord {
+  evidence_id: string;
+  row_index: number;
+  source_key: string;
+  full_name: string;
+  client_id: string;
+  hostname: string;
+  title: string;
+  time_status: string;
+  event_time: string | null;
+  cited_by: string[];
+  row: Record<string, unknown>;
+}
+
+// CONTRACT: rows_page
+export interface RowsPage {
+  state: "ready";
+  records: RowRecord[];
+  total: number;
+  offset: number;
+  limit: number;
+  filters: { key: string; value: string }[];
+  scan_truncated: boolean;
+  scope: string;
+  source: TableSource | null;
+  counting_unit: string;
+}
+
+export interface Highlight {
+  rule_id: string;
+  field: string;
+  start: number | null;
+  end: number | null;
+}
+
+export interface RowRef {
+  evidence_id: string;
+  title: string;
+  full_name: string;
+  event_time: string | null;
+}
+
+export interface AddressInfo {
+  field: string;
+  role: string;
+  address: string;
+  class: string;
+  label: string;
+  basis: string;
+  port: unknown;
+  port_field: string | null;
+}
+
+export interface SummaryField {
+  field: string | null;
+  role: string | null;
+  label: string;
+  kind: string;
+  value?: string;
+  virtual?: boolean;
+}
+
+export interface InspectActions {
+  where_else: { available: boolean; reason?: string };
+  compare: { available: boolean; reason?: string; capture?: Record<string, unknown> };
+  pin: { pinned: boolean; pin_id?: string | null; note?: string | null };
+}
+
+// CONTRACT: inspect
+export interface Inspect {
+  state: "ready";
+  record: {
+    evidence_id: string; investigation_id: string; org_id: string; client_id: string; hostname: string;
+    flow_id: string; hunt_id: string | null; artifact: string; source: string | null; full_name: string;
+    source_key: string; collected_at: string | null; retrieved_at: string | null; row_index: number;
+    row_index_base: number; raw_sha256: string; file: string; line_offset_bytes: number;
+    recorded_event_time: string | null; recorded_event_time_field: string | null; recorded_event_time_note: string;
+  };
+  row: Record<string, unknown>;
+  raw_text: string;
+  title: string;
+  source: TableSource;
+  presentation: {
+    mapping: MappingInfo;
+    domain: string;
+    summary: SummaryField[];
+    kinds: Record<string, string>;
+    addresses: AddressInfo[];
+    event_time: { status: string; utc: string | null; reason: string | null; detail: string; basis: Record<string, unknown> | null };
+  };
+  highlights: Highlight[];
+  findings: { finding_id: string; title: string; severity: string; confidence: string; origin: string; rule_id: string | null; review_state: ReviewState; review_label: string }[];
+  entities: { kind: string; key: string; display: string; label: string }[];
+  relations: {
+    parent: RowRef | null; parent_status: string | null; children: RowRef[]; children_status: string | null;
+    connections: RowRef[]; process: RowRef | null; process_status: string | null;
+  };
+  related_by_finding: RowRef[];
+  actions?: InspectActions;
+}
+
+export interface Timeline {
+  state: "ready";
+  mode: "events";
+  basis: string;
+  counting_unit: string;
+  range: { from: string | null; to: string | null };
+  bucket: { width_us: number; label: string };
+  buckets: HistogramBucket[];
+  timed_rows: number;
+  complete: boolean;
+  incomplete_sources: string[];
+  untimed: { total: number; by_reason: { status: string; count: number; label: string }[] };
+  mappings: { source_key: string; label: string; rules: { role: string; format: string; meaning: string }[]; statuses: Record<string, number>; basis: Record<string, unknown> | null }[];
+  note: string | null;
+}
+
+export interface SourcesView {
+  state: "ready";
+  sources: SourceBrief[];
+  state_labels: Record<string, string>;
+}
+
+// ---------------------------------------------------------------- report selection (pins)
+
+export type PinKind = "evidence" | "finding" | "change";
+
+// CONTRACT: pin
+export interface Pin {
+  pin_id: string;
+  kind: PinKind;
+  ref: string;
+  title: string;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+  snapshot: Record<string, unknown>;
+  resolved?: boolean;
+}
+
+// ---------------------------------------------------------------- changes, history, cohorts
+
+export interface Capture {
+  investigation_id: string;
+  title: string;
+  mode: string;
+  synthetic: boolean;
+  org_id: string;
+  client_id: string;
+  hostname: string;
+  flow_id: string;
+  hunt_id: string | null;
+  artifact: string;
+  source: string | null;
+  full_name: string;
+  source_key: string;
+  collected_at: string | null;
+  collected_ts: number | null;
+  read_status: string;
+  result_status: string;
+  persisted_rows: number;
+  stop_reason: string | null;
+  domain: string;
+  duplicates: string[];
+  is_current?: boolean;
+  complete?: boolean;
+}
+
+export interface ChangeSummary {
+  state: "complete" | "incomparable";
+  incomparable_reason: string | null;
+  counts: Record<"added" | "removed" | "modified" | "unchanged" | "unknown", number>;
+  unchanged_with_ignored_differences: number;
+  unknown_reasons: { reason: string; count: number }[];
+  limitations: string[];
+  current_side: { rows: number; manifest_rows: number; keyed: number; skipped: number; unkeyed: number; verified: boolean; absence_established: boolean };
+  baseline_side: { rows: number; manifest_rows: number; keyed: number; skipped: number; unkeyed: number; verified: boolean; absence_established: boolean };
+}
+
+export interface ChangeSource {
+  source_key: string;
+  full_name: string;
+  label: string;
+  adapter: string;
+  adapter_label: string;
+  current: Capture;
+  baselines: Capture[];
+  default_baseline: Capture | null;
+  cached: { comparison_id: string; created_at: string; baseline: Capture; summary: ChangeSummary; policy_version: string }[];
+  reason: string | null;
+}
+
+export interface ChangeSources {
+  sources: ChangeSource[];
+  not_comparable: { source_key: string; full_name: string; hostname: string }[];
+  note: string;
+}
+
+export interface Comparison {
+  state: "ready";
+  comparison_id: string;
+  created_at: string;
+  definition: {
+    comparison_id: string; policy_version: string; normalizer_version: string; adapter: string; adapter_label: string;
+    key_roles: string[]; compared_roles: string[]; volatile_roles: string[]; current: Capture; baseline: Capture;
+  };
+  summary: ChangeSummary;
+}
+
+export interface ChangeItem {
+  item_key: string;
+  state: "added" | "removed" | "modified" | "unchanged" | "unknown";
+  state_label: string;
+  key_display: string;
+  changed: string[];
+  before_eids: string[];
+  after_eids: string[];
+  before_values: Record<string, unknown> | null;
+  after_values: Record<string, unknown> | null;
+  ignored_diff: boolean;
+  reason: string | null;
+}
+
+export interface CaptureHistory {
+  state: "ready";
+  current: Capture;
+  captures: Capture[];
+  comparisons: ChangeSource["cached"];
+  enough_history: boolean;
+  basis: string;
+  counting_unit: string;
+}
+
+export interface CohortRef {
+  evidence_id: string;
+  title: string;
+  full_name: string;
+  hostname: string;
+  client_id: string;
+  investigation_id: string;
+  eligible_host?: boolean;
+}
+
+export interface HostsView {
+  state: "ready";
+  scope: "investigation" | "organization";
+  org_id: string | null;
+  window: { from: string | null; to: string | null; days: number } | null;
+  unavailable: string | null;
+  hosts: { client_id: string; hostname: string; os: string; findings_open: number; findings_total: number; rows: number; sources_complete: number; sources_total: number; investigations: string[] }[];
+  host_count: number;
+  excluded: { client_id: string; hostname: string; investigation_id: string; reason: string }[];
+  groups: { os: string; hosts: number; kinds: { kind: string; label: string; eligible_hosts: number }[]; usable: boolean }[];
+  outliers: { kind: string; label: string; key: string; display: string; seen: number; eligible: number; os: string; text: string; hosts: string[]; refs: CohortRef[] }[];
+  outliers_total: number;
+  offset: number;
+  limit: number;
+  min_cohort: number;
+  counting_unit: string;
+  note: string;
+}
+
+export interface WhereElse {
+  state: "ready";
+  evidence_id: string;
+  scope: "investigation" | "organization";
+  org_id: string | null;
+  window: { from: string | null; to: string | null; days: number } | null;
+  unavailable: string | null;
+  host_os: string;
+  other_os_hosts: string[];
+  excluded: { client_id: string; hostname: string; investigation_id: string; reason: string }[];
+  entities: { kind: string; label: string; key: string; display: string; seen: number; eligible: number; text: string; also_seen_not_eligible: string[]; not_eligible_hosts: string[]; refs: CohortRef[]; cohort_too_small: boolean }[];
+  counting_unit: string;
+  note: string;
+}

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import html
 import json
+import re
 
 from vr_dfir.reporting.fonts import embedded_fonts
 
@@ -22,11 +23,25 @@ _BADGE = {
 }
 
 
+# Line and paragraph separators (CR, LF, NEL, U+2028/2029) and other control characters are
+# replaced by a space, so untrusted text cannot start a new Markdown line (a forged heading,
+# list or code fence) in any renderer.
+_MD_BREAKS = re.compile(r"[\x00-\x1f\x7f\x85\u2028\u2029]")
+
+
 def _md_escape(text) -> str:
     s = "" if text is None else str(text)
+    s = _MD_BREAKS.sub(" ", s)
     s = s.replace("\\", "\\\\").replace("|", "\\|").replace("<", "&lt;").replace(">", "&gt;")
     s = s.replace("`", "\\`").replace("*", "\\*").replace("_", "\\_").replace("[", "\\[")
-    return s.replace("\n", " ")
+    s = s.replace("#", "\\#").replace("~", "\\~")
+    return s
+
+
+def _md_code(text) -> str:
+    """Content of an inline code span: no line breaks or backticks, so it cannot close early."""
+    s = _MD_BREAKS.sub(" ", "" if text is None else str(text))
+    return s.replace("`", "'")
 
 
 def render_markdown(report: dict) -> str:
@@ -37,7 +52,7 @@ def render_markdown(report: dict) -> str:
     if report.get("data_label"):
         out.append(f"\n> **{report['data_label']}**")
     out.append("")
-    out.append(f"- Investigation ID: `{inv.get('id')}`")
+    out.append(f"- Investigation ID: `{_md_code(inv.get('id'))}`")
     out.append(f"- Mode: {_md_escape(inv.get('mode'))}")
     out.append(f"- Outcome: **{_md_escape(inv.get('outcome_label'))}**")
     st = report["status"]
@@ -48,15 +63,15 @@ def render_markdown(report: dict) -> str:
                f"{_md_escape(prov.get('model') or '-')}"
                + (" (FAKE MODEL)" if prov.get("fake") else ""))
     scope = report.get("scope") or {}
-    out.append(f"- Scope: org `{scope.get('org_id')}`"
-               + (f", client `{scope.get('client_id')}`" if scope.get("client_id") else "")
+    out.append(f"- Scope: org `{_md_code(scope.get('org_id'))}`"
+               + (f", client `{_md_code(scope.get('client_id'))}`" if scope.get("client_id") else "")
                + (f" ({_md_escape(scope.get('hostname'))})" if scope.get("hostname") else "")
-               + (f", flow `{scope.get('flow_id')}`" if scope.get("flow_id") else "")
-               + (f", hunt `{scope.get('hunt_id')}`" if scope.get("hunt_id") else ""))
+               + (f", flow `{_md_code(scope.get('flow_id'))}`" if scope.get("flow_id") else "")
+               + (f", hunt `{_md_code(scope.get('hunt_id'))}`" if scope.get("hunt_id") else ""))
     if report.get("profile"):
         p = report["profile"]
-        out.append(f"- Profile: {_md_escape(p.get('name'))} (`{p.get('id')}`, fingerprint "
-                   f"`{str(p.get('fingerprint'))[:12]}`)")
+        out.append(f"- Profile: {_md_escape(p.get('name'))} (`{_md_code(p.get('id'))}`, fingerprint "
+                   f"`{_md_code(str(p.get('fingerprint'))[:12])}`)")
     out.append(f"- Generated: {report['generated_at']} by {report['generator']}")
     out.append("\n## Summary\n")
     for s in report["summary_statements"]:
@@ -90,7 +105,7 @@ def render_markdown(report: dict) -> str:
     if not report["findings"]:
         out.append("No accepted findings. This does not mean the target is clean; see coverage.")
     for f in report["findings"]:
-        out.append(f"### {f['finding_id']}: {_md_escape(f['title'])}\n")
+        out.append(f"### {_md_escape(f['finding_id'])}: {_md_escape(f['title'])}\n")
         out.append(f"- Origin: {_md_escape(f['origin'])}; Severity: {_md_escape(f['severity'])}; "
                    f"Confidence: {_md_escape(f['confidence'])}")
         out.append(f"- Observation: {_md_escape(f['observation'])}")
@@ -104,11 +119,11 @@ def render_markdown(report: dict) -> str:
         refs = []
         for r in f.get("evidence_refs", []):
             if r.get("unresolved"):
-                refs.append(f"`{r['evidence_id']}` (UNRESOLVED)")
+                refs.append(f"`{_md_code(r['evidence_id'])}` (UNRESOLVED)")
             else:
-                refs.append(f"`{r['evidence_id']}` ({_md_escape(r['artifact'])}/"
-                            f"{_md_escape(r.get('source') or '')} row {r['row_index']}, "
-                            f"{r['client_id']}, {r['flow_id']})")
+                refs.append(f"`{_md_code(r['evidence_id'])}` ({_md_escape(r['artifact'])}/"
+                            f"{_md_escape(r.get('source') or '')} row {_md_escape(r['row_index'])}, "
+                            f"{_md_escape(r['client_id'])}, {_md_escape(r['flow_id'])})")
         out.append("- Evidence: " + ", ".join(refs))
         out.append("")
     if report["rejected_findings"]:

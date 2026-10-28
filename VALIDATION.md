@@ -1,8 +1,113 @@
-# Validation — AI preview 0.4.0a2 and earlier live checks
+# Validation — AI preview 0.5.0a1 candidate, 0.4.0a2 and earlier live checks
 
 This record concerns this narrowed candidate, not the internal 0.3.1 release. Automated tests
 use synthetic fixtures and fake providers. Operator-reported live lab checks are listed
 separately below; none of these checks establishes detection accuracy or model quality.
+
+## Independent package review (2026-10-28, Ubuntu 24.04, synthetic data)
+
+The reviewed offline archive has SHA-256
+`ee39d24ebc96696bec9b04bb7ae3a02c5263bd4ebaedfb8ce333569cfb8a68a3`.
+Its source snapshot records local commit `2af5fae77ba3e0c2d023b1ce6334874c007c0366`
+and tree `f99b540e79b275d8b5dbca27eadcf7c8684e5ddf`. Publication imports that snapshot
+with documentation updates; the private development history is not part of the import.
+
+- Archive SHA-256 and all 72 internal manifest entries verified. The archive contains
+  no symbolic links, hard links, devices or paths outside its extraction directory.
+- All 66 Python source files matched the application wheel byte for byte. The wheel
+  includes 21 built UI files; no frontend build is required on the destination.
+- Offline installation and `pip check` passed on Ubuntu 24.04 with the system CPython
+  3.12.3 and glibc 2.39, without an installed `ensurepip` module. The installed command
+  reported `vr-dfir 0.5.0a1`.
+- A focused regression run using CPython 3.12.14 on the same Ubuntu environment:
+  **117 passed, 2 skipped**. It covered presentation, views, comparisons, cohort and
+  selection, edge cases, the view API, preview policy, web API, reporting and preflight.
+  The skipped cases required `PREFLIGHT_RELEASE_DIR` or built fonts in the source tree;
+  the separate offline install and installed-UI browser checks covered those artifacts.
+  This run is not a rerun of the complete build-host Python suite below.
+- **Eight Chromium journeys passed** against the installed wheel on CPython 3.12.3,
+  using the test-only synthetic backend and fake provider. They covered the retained
+  flow/report paths and all five demonstration journeys listed below, including Unknown
+  instead of false removals, original-row links, eligible hosts, untimed rows, pins,
+  persisted notes and selected-evidence reports.
+- The Overview had three summary metrics. Its page width matched the viewport at 768,
+  390 and 320 CSS pixels; desktop and narrow-layout captures were visually inspected.
+  No page script errors or external HTTP resource requests were observed in that check.
+
+These checks did not contact the owner's Velociraptor server or model. They do not
+establish detection accuracy, real-source mapping coverage, or comparative usability.
+
+## Operator-reported destination upgrade (2026-10-28, 0.5.0a1)
+
+The owner supplied terminal output and confirmed that the new UI opened. The destination
+was Ubuntu 24.04 with CPython 3.12.3, glibc 2.39 and SQLite 3.45.1. The assistant did not
+operate the destination server.
+
+- The archive checksum and preflight passed with no failures or warnings. The previous
+  preview was 0.4.0a2 with six saved investigations.
+- The new version was installed into a separate directory. Configuration was backed up,
+  the preview was stopped for a consistent state archive/copy, and the existing systemd
+  preview unit was switched through a release drop-in. The old installation and state
+  were retained. The loopback status API reported `0.5.0a1`; the owner confirmed the UI
+  change through the existing HTTPS gateway.
+- `doctor --probe --probe-model` returned `Result: ok`: dependencies and built assets,
+  writable candidate state, read-only backend access, a reachable Velociraptor API, and
+  the existing local Ollama model `qwen2.5:1.5b` available.
+
+This is installation, startup and connectivity evidence. A live 0.5.0a1 analysis,
+model-generated explanation quality, real-source field mappings, full manual UI
+acceptance and an executed destination rollback are not established by these outputs.
+Private addresses, credentials, evidence and runtime logs are not included here.
+
+## Release candidate 0.5.0a1 (2026-10-27, build host, synthetic data only)
+
+This application-suite record predates the October 28 packaging-only update. The latter
+delivery record reports 17 preflight/packaging tests passed against the final archive;
+the full application suite was not rerun for that packaging update. Independent review
+of the delivered archive is recorded above.
+
+These checks ran on the build host against synthetic fixtures, fake providers and synthetic
+demonstration bundles. No live Velociraptor server, Ollama model or real evidence was used.
+
+- CPython 3.12.14: **235 passed, 1 skipped** (the skipped test needs a checkout readable by
+  `nobody`). Ruff passed. CPython 3.10.22, 3.11.17 and 3.13.16 from separate local virtualenvs:
+  **235 passed, 1 skipped** on each. At this checkpoint the GitHub CI matrix had not run;
+  publication had not yet been requested.
+- Frontend: TypeScript check and production Vite build passed; **37 component tests passed**.
+- Playwright (headless Chromium, built UI, synthetic backend): **8 passed** — the three
+  retained 0.4 journeys and the five brief journeys (review without AI; meaningful change
+  with both original records; incomplete current capture gives Unknown, not Removed;
+  eligible-host denominator, Where else seen, timeline bucket and untimed rows; pins and a
+  note survive reload, a pinned change reopens that exact change, selected-evidence report).
+- Independent code review of the new services and UI found 13 defects; all were fixed with
+  regression tests (`tests/test_edge_cases.py`, additions to `test_views_api.py` and the
+  frontend inspector test): previous row shown while another loads, nested summary fields,
+  truncated comparison and entity keys merging distinct values, a normalizer exception on
+  unusual numbers, Removed despite rows without key fields, timeline completeness ignoring
+  failed time-mapped sources, partial edge buckets, cancelled index builds restarting on
+  poll, pinned changes opening the wrong comparison, mapping changes not invalidating
+  comparison caches, inexact large integers in change values, the host chart linking to
+  all findings instead of those needing review, and repeated bundle opening in the
+  selected report.
+- 100k-row measurement (`tests/support/measure_large.py`, Xeon E5-2699 v4, 6 CPUs, 16 GB):
+  two captures of 126,024 rows each. Import 47.2 s (106 MiB peak RSS). Cold index build
+  16.0 s (52 MiB peak, 40.6 MB index). Warm views: overview 3 ms, a rows page 5 ms (first and
+  last page), cited rows over all sources 118 ms, full-text search 378 ms, inspector 13 ms,
+  timeline 127 ms, hosts 1.7 s, Where else seen 288 ms. A 100k-row comparison takes 17.0 s
+  cold (runs in the background with progress; 20.5 MB result file) and 7 ms when cached;
+  a change page loads in 280 ms. Peak RSS 159 MiB.
+- Compatibility with 0.4.0a2 (`a2` virtualenv, synthetic fixture bundle): 0.5.0a1 reads the
+  0.4.0a2 state (overview, hosts, pins, selected report) and leaves every original file
+  byte-identical (only `derived/`, `selection.*` and `report/selected.*` are added); after
+  that, 0.4.0a2 still lists the investigation, its findings, rebuilds its HTML report and
+  verifies the evidence bundle (rollback).
+- No model request is made while navigating views (API test with a counting provider);
+  state-changing routes keep the CSRF, Host and Origin checks.
+
+Not executed: live Velociraptor or Ollama checks, real evidence, the systemd promotion and
+rollback procedure in INSTALL.md, the HTTPS gateway with dual cookies, and analyst
+usability timing against 0.4.0a2 or the Velociraptor GUI. Real LTH column names are not
+verified (documented candidates; operator mappings can correct them).
 
 ## Report revision 0.4.0a2 (2026-10-18)
 

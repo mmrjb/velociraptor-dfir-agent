@@ -1,29 +1,33 @@
+// Landing page: recent investigations with their hosts, capture age, progress and review
+// status, a Continue action, and one primary action (Start investigation). Saved evidence and
+// bundle import stay available when the Velociraptor API is not configured or unreachable.
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { Plus, Upload } from "lucide-react";
+import { Plus } from "lucide-react";
 import { apiGet, errorMessage } from "../api/client";
 import type { ApiError, InvestigationSummary } from "../api/types";
 import { useApp, usePolling } from "../lib/app";
-import { MODE_LABELS, formatTime } from "../lib/format";
-import { Banner, SyntheticBadge, EmptyState, ErrorBanner, Spinner, StatusBadge, UrlSearchInput } from "../components/ui";
+import { formatTime, MODE_LABELS } from "../lib/format";
+import { Banner, EmptyState, ErrorBanner, Spinner, StatusBadge, SyntheticBadge, UrlSearchInput } from "../components/ui";
+
+type Row = InvestigationSummary & { report_ready?: boolean; reviews_decided?: number };
 
 export function InvestigationsPage() {
   const app = useApp();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const [items, setItems] = useState<InvestigationSummary[] | null>(null);
+  const [items, setItems] = useState<Row[] | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const q = params.get("q") ?? "";
-  const status = params.get("status") ?? "";
 
   const load = useCallback(async () => {
     try {
-      setItems(await apiGet<InvestigationSummary[]>("/investigations", { q, status }));
+      setItems(await apiGet<Row[]>("/investigations", { q }));
       setError(null);
     } catch (e) {
       setError(errorMessage(e));
     }
-  }, [q, status]);
+  }, [q]);
 
   useEffect(() => {
     app.setInvestigationContext(null);
@@ -34,127 +38,75 @@ export function InvestigationsPage() {
     await load();
   }, 3000, !!items?.some((i) => i.job_active));
 
-  const setFilter = (key: string, value: string) => {
-    const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
-    else next.delete(key);
-    setParams(next, { replace: true });
-  };
-
-  const st = app.status;
+  const vr = app.status?.velociraptor;
   return (
     <>
       <div className="page-head">
         <div>
           <h1>Investigations</h1>
-          <p className="muted">Collect, analyze existing evidence, and review findings that trace back to evidence rows.</p>
+          <p className="muted">Continue a saved investigation, or start one from existing evidence.</p>
         </div>
-        <div className="row">
-          <Link className="btn primary" to="/investigations/new">
-            <Plus size={16} aria-hidden /> New Investigation
-          </Link>
-          <Link className="btn" to="/investigations/new?mode=import">
-            <Upload size={16} aria-hidden /> Import Evidence
-          </Link>
-        </div>
+        <Link className="btn primary" to="/investigations/new">
+          <Plus size={16} aria-hidden /> Start investigation
+        </Link>
       </div>
-      {st && !st.velociraptor.configured && (
-        <Banner tone="info" title="Velociraptor access is not configured on this server.">
-          Endpoints, flows, hunts, and new collections need <code>VELOCIRAPTOR_API_CONFIG</code> in the server environment. Saved investigations and imported evidence work without it.
+      {vr && !vr.configured && (
+        <Banner tone="info" title="Velociraptor is not connected" action={<Link className="btn small" to="/investigations/new?mode=import">Import evidence</Link>}>
+          Saved investigations and bundle import work without it. Live collections and hunts need the API configuration (see Settings).
+        </Banner>
+      )}
+      {vr?.configured && vr.last_test?.reachable === false && (
+        <Banner tone="warn" title="Velociraptor is unreachable" action={<Link className="btn small" to="/settings">Check connection</Link>}>
+          Saved evidence remains available.
         </Banner>
       )}
       <ErrorBanner error={error} onRetry={load} />
-      <div className="card tight">
+      {((items?.length ?? 0) > 6 || q) && (
         <div className="row" style={{ marginBottom: 10 }}>
           <label className="sr-only" htmlFor="inv-search">
             Search investigations
           </label>
-          <UrlSearchInput id="inv-search" placeholder="Search by name, host, client, flow or hunt" value={q} onCommit={(v) => setFilter("q", v)} style={{ flex: 1, minWidth: 220 }} />
-          <label className="row small">
-            Status
-            <select aria-label="Filter by status" value={status} onChange={(e) => setFilter("status", e.target.value)}>
-              <option value="">All</option>
-              <option value="running">In progress</option>
-              <option value="complete">Complete</option>
-              <option value="partial">Partial</option>
-              <option value="evidence_only">Evidence only</option>
-              <option value="interrupted">Interrupted</option>
-              <option value="failed">Failed</option>
-            </select>
-          </label>
+          <UrlSearchInput id="inv-search" placeholder="Search by title, host, client, flow or hunt" value={q} onCommit={(v) => setParams(v ? { q: v } : {}, { replace: true })} style={{ flex: 1, minWidth: 220 }} />
         </div>
-        {items === null ? (
-          <Spinner />
-        ) : items.length === 0 ? (
-          <EmptyState title={q || status ? "No investigations match these filters." : "No investigations yet."}>
-            {!q && !status && (
-              <div className="row" style={{ justifyContent: "center" }}>
-                <Link className="btn primary" to="/investigations/new">
-                  New Investigation
-                </Link>
-                <Link className="btn" to="/investigations/new?mode=import">
-                  Import Evidence
-                </Link>
-              </div>
-            )}
+      )}
+      {items === null ? (
+        <Spinner />
+      ) : items.length === 0 ? (
+        <div className="card">
+          <EmptyState title={q ? "No investigations match this search." : "No investigations yet."}>
+            {!q && <p className="small">Start one from an existing collection, an existing hunt, or an evidence bundle.</p>}
           </EmptyState>
-        ) : (
-          <div className="table-wrap">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th>Investigation</th>
-                  <th>Target / org</th>
-                  <th>Mode / profile</th>
-                  <th>Created</th>
-                  <th>Status</th>
-                  <th>Findings</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((i) => (
-                  <tr key={i.investigation_id} className="clickable" onClick={() => navigate(`/investigations/${i.investigation_id}`)}>
-                    <td>
-                      <Link to={`/investigations/${i.investigation_id}`} onClick={(e) => e.stopPropagation()}>
-                        {i.title}
-                      </Link>
-                      <div className="small muted mono">{i.investigation_id}</div>
-                      {i.synthetic && <SyntheticBadge />}
-                    </td>
-                    <td>
-                      <span dir="auto">{i.scope?.hostname || i.scope?.client_id || i.scope?.hunt_id || "-"}</span>
-                      {i.scope?.client_id && i.scope?.hostname && <div className="small muted mono">{i.scope.client_id}</div>}
-                      <div className="small muted">
-                        org <span className="mono">{i.scope?.org_id ?? "-"}</span>
-                      </div>
-                    </td>
-                    <td>
-                      {MODE_LABELS[i.mode] ?? i.mode}
-                      {i.profile && <div className="small muted">{i.profile.name}</div>}
-                    </td>
-                    <td className="nowrap">{formatTime(i.created_at)}</td>
-                    <td>
-                      <div className="stack" style={{ gap: 3 }}>
-                        <span>
-                          <StatusBadge value={i.outcome === "running" ? i.phase : i.outcome} />
-                          {i.job_active && <span className="small muted"> running…</span>}
-                        </span>
-                        <span className="small">
-                          <StatusBadge value={i.collection_status} prefix="Collection" />
-                        </span>
-                        <span className="small">
-                          <StatusBadge value={i.analysis_status} prefix="Analysis" />
-                        </span>
-                      </div>
-                    </td>
-                    <td>{i.counts?.findings ?? "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <ul className="plain inv-list" aria-label="Recent investigations">
+          {items.map((i) => {
+            const findings = i.counts?.findings;
+            const running = i.outcome === "running" || i.job_active;
+            const hosts = i.mode === "existing_hunt" ? `${i.counts?.clients ?? "?"} host(s), hunt ${i.scope?.hunt_id ?? ""}` : i.scope?.hostname || i.scope?.client_id || (i.counts?.clients ? `${i.counts.clients} host(s)` : "-");
+            return (
+              <li key={i.investigation_id} className="inv-card">
+                <div className="inv-main">
+                  <Link to={`/investigations/${i.investigation_id}`} className="inv-title" dir="auto">
+                    {i.title}
+                  </Link>
+                  <div className="small muted">
+                    <span dir="auto">{hosts}</span> · org <span className="mono">{i.scope?.org_id || "unknown"}</span> · {MODE_LABELS[i.mode] ?? i.mode} · saved {formatTime(i.updated_at)} {i.synthetic && <SyntheticBadge />}
+                  </div>
+                </div>
+                <div className="inv-status">
+                  <StatusBadge value={running ? i.phase : i.outcome} />
+                  <span className="small">
+                    {running ? "processing…" : !i.report_ready ? "findings not ready" : findings === 0 ? "no accepted findings" : `${i.reviews_decided ?? 0} of ${findings} reviewed`}
+                  </span>
+                </div>
+                <button className="btn" onClick={() => navigate(`/investigations/${i.investigation_id}`)} aria-label={`Continue ${i.title}`}>
+                  Continue
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </>
   );
 }

@@ -7,8 +7,16 @@ import { DialogLayer, useDialog } from "./ui";
 
 export type ValueKind = "absent" | "null" | "empty" | "bool" | "number" | "string" | "multiline" | "array" | "object";
 
+// Integers beyond the JavaScript safe range arrive wrapped by the server so no digit is lost.
+export const BIGINT_KEY = "__vr_bigint__";
+
+export function isBigInt(v: unknown): v is { [BIGINT_KEY]: string } {
+  return !!v && typeof v === "object" && !Array.isArray(v) && Object.keys(v as object).length === 1 && typeof (v as Record<string, unknown>)[BIGINT_KEY] === "string";
+}
+
 export function valueKind(v: unknown): ValueKind {
   if (v === undefined) return "absent";
+  if (isBigInt(v)) return "number";
   if (v === null) return "null";
   if (typeof v === "boolean") return "bool";
   if (typeof v === "number" || typeof v === "bigint") return "number";
@@ -21,15 +29,34 @@ export function valueKind(v: unknown): ValueKind {
 export function exactText(v: unknown): string {
   if (v === undefined) return "";
   if (typeof v === "string") return v;
+  if (isBigInt(v)) return v[BIGINT_KEY];
   if (v === null || typeof v === "number" || typeof v === "boolean") return String(v);
   try {
-    return JSON.stringify(v, null, 2);
+    return jsonWithBigInts(v);
   } catch {
     return String(v);
   }
 }
 
+/** JSON text with wrapped big integers written back as their exact digits. */
+export function jsonWithBigInts(v: unknown): string {
+  const marks: string[] = [];
+  const text = JSON.stringify(
+    v,
+    (_k, x) => {
+      if (isBigInt(x)) {
+        marks.push(x[BIGINT_KEY]);
+        return `\u0000BIGINT${marks.length - 1}\u0000`;
+      }
+      return x;
+    },
+    2,
+  );
+  return text.replace(/"\\u0000BIGINT(\d+)\\u0000"/g, (_m, i) => marks[Number(i)]);
+}
+
 export function summarize(v: unknown): string {
+  if (isBigInt(v)) return v[BIGINT_KEY];
   if (Array.isArray(v)) return v.length === 0 ? "[ ] empty list" : `[${v.length} item${v.length === 1 ? "" : "s"}]`;
   if (v && typeof v === "object") {
     const keys = Object.keys(v as object);
@@ -101,7 +128,7 @@ export function CopyButton({ text, label, compact = false }: { text: string; lab
 }
 
 /** Inline value: typed rendering, never a tooltip-only truncation; long values get an expand button. */
-export function ValueCell({ value, label, expandable = true }: { value: unknown; label: string; expandable?: boolean }) {
+export function ValueCell({ value, label, expandable = true, onExpand }: { value: unknown; label: string; expandable?: boolean; onExpand?: () => void }) {
   const [open, setOpen] = useState(false);
   const kind = valueKind(value);
   // Short values can still be cut off by a narrow column: offer the full value whenever the
@@ -139,7 +166,7 @@ export function ValueCell({ value, label, expandable = true }: { value: unknown;
     case "number":
       body = (
         <span className="cellv-text" ref={textRef}>
-          {String(value)}
+          {exactText(value)}
         </span>
       );
       break;
@@ -158,7 +185,7 @@ export function ValueCell({ value, label, expandable = true }: { value: unknown;
     <span className="cellv">
       {body}
       {expandable && (needsExpansion(value) || overflows) && (
-        <button type="button" className="btn icon ghost small" aria-label={`Show full value of ${label}`} onClick={() => setOpen(true)}>
+        <button type="button" className="btn icon ghost small" aria-label={`Show full value of ${label}`} onClick={(e) => { if (onExpand) { e.stopPropagation(); onExpand(); } else setOpen(true); }}>
           <Maximize2 size={13} aria-hidden />
         </button>
       )}

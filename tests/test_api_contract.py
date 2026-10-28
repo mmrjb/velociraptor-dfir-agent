@@ -66,7 +66,21 @@ def samples(tmp_path):
         time.sleep(0.01)
     findings = c.get(f"/api/v1/investigations/{inv}/findings").json()["data"]
     eid = findings["findings"][0]["evidence_ids"][0]
+
+    def ready(path, **params):
+        for _ in range(200):
+            data = c.get(path, params=params).json()["data"]
+            if data.get("state") == "ready":
+                return data
+            time.sleep(0.05)
+        raise AssertionError(path)
+    base = f"/api/v1/investigations/{inv}"
+    pin = c.post(f"{base}/selection", json={"kind": "evidence", "ref": eid}).json()["data"]
     return {
+        "overview": ready(f"{base}/views/overview"),
+        "rows_page": ready(f"{base}/views/rows", limit=5),
+        "inspect": ready(f"{base}/views/inspect/{eid}"),
+        "pin": pin,
         "session": session,
         "status": c.get("/api/v1/status").json()["data"],
         "client": c.get("/api/v1/clients", params={"org_id": "OSYNTHLAB"}).json()["data"]["clients"][0],
@@ -80,11 +94,11 @@ def samples(tmp_path):
 
 def test_contract_parser_finds_all():
     fields = contract_fields()
-    assert set(fields) == {"session", "status", "client", "plan", "investigation", "finding", "coverage_source", "evidence_record"}
+    assert set(fields) == {"session", "status", "client", "plan", "investigation", "finding", "coverage_source", "evidence_record", "overview", "rows_page", "inspect", "pin"}
     assert "csrf_token" in fields["session"] and "evidence_ids" in fields["finding"]
 
 
-@pytest.mark.parametrize("name", ["session", "status", "client", "plan", "investigation", "finding", "coverage_source", "evidence_record"])
+@pytest.mark.parametrize("name", ["session", "status", "client", "plan", "investigation", "finding", "coverage_source", "evidence_record", "overview", "rows_page", "inspect", "pin"])
 def test_typescript_contract_matches_api(name, samples):
     required = contract_fields()[name]
     missing = [f for f in required if f not in samples[name]]

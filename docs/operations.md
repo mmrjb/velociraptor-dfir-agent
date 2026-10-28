@@ -25,9 +25,10 @@ Point an MCP client to the absolute preview executable, with an absolute environ
 }
 ```
 
-The 16 tools list organizations/clients, read existing results/status/pages, start local
+The 19 tools list organizations/clients, read existing results/status/pages, start local
 analysis of existing flows/hunts, list or inspect investigations, resume local retrieval,
-retry analysis, and retrieve evidence/reports. Starting analysis can contact the configured
+retry analysis, retrieve evidence/reports, and read the summary views (`get_overview`,
+`compare_captures`, `where_else_seen`). Starting analysis can contact the configured
 Ollama server and persist evidence locally. No tool launches a collection, creates a hunt,
 changes an endpoint, or accepts arbitrary VQL. Standard output contains JSON-RPC only.
 

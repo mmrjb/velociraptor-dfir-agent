@@ -1,31 +1,67 @@
 # GUI workflow
 
 Open the loopback UI through the SSH tunnel described in INSTALL.md, or use an
-administrator-configured [authenticated LAN HTTPS gateway](lan-access.md). The initial
-page is Investigations, followed by Findings & Evidence and Reports. Pick the organization
-in the header before reading live evidence.
+administrator-configured [authenticated LAN HTTPS gateway](lan-access.md). The main
+destinations are **Investigations**, **Reports** and **Settings**.
 
-1. Choose **New Investigation**. Select an existing endpoint collection or existing hunt.
-   Search for the endpoint or paste its client/flow IDs. Review the source scope and analysis
-   choice, then select **Analyze Existing Evidence**. There is no new-collection option.
-2. Alternatively choose **Import Evidence**. Upload a version 1 bundle archive or reanalyze
-   a saved bundle. Evidence-only mode is selected initially; uncheck it to use Ollama.
-3. Inspect retrieval and analysis status independently. A failed model does not remove the
-   retrieved evidence. Retry analysis only when you intend to make new model requests.
-4. Open **Findings & Evidence**. Severity, confidence and analyst review state are separate.
-   Each evidence ID opens its exact row or reports an unresolved reference; no substitute
-   row is shown. Open the row in its source table to inspect surrounding evidence.
-5. Use full-value dialogs for long commands/paths. Copy preserves exact values; null, empty,
-   absent, false and zero are distinct. Filter, toggle columns, wrap text and page tables.
-   UI text uses locally bundled body and code fonts, including Persian glyph support.
-6. Save an analyst review note, request an optional cited explanation, or export a report.
+## The first minute
 
-Opening a report does not ask the model to produce a new analysis. Evidence and model text
-are rendered as untrusted content. This is a local single-user analyst application; keep
-the application on loopback. Remote access uses SSH or the optional authenticated HTTPS
-gateway. Gateway logins share the application's workspace and do not provide per-user roles.
+1. **Investigations** lists saved investigations with their hosts, organization, when they
+   were saved, and their progress ("findings not ready", "3 of 8 reviewed"). Select
+   **Continue**, or **Start investigation** to choose an existing collection on a host, an
+   existing hunt, or an evidence bundle. Nothing new is collected from endpoints.
+2. An investigation opens on **Overview**: a **Next step**, three numbers (Needs review,
+   Represented hosts, Sources read), two charts and the findings that need attention. Every
+   number and chart segment opens the matching evidence. A low count or no findings is not a
+   statement that a host is clean; the coverage line says what was read.
+3. **Evidence** shows findings beside one inspector. Select a finding to see what was
+   observed, why it needs attention, its evidence rows and the **Review decision**. Select a
+   row to open it in the inspector: the important fields first, the reason for attention with
+   the matched text marked, then **All fields** and **Advanced** (exact raw JSON, provenance,
+   timestamp basis). **Source rows** switches to the saved table of one source (five to seven
+   useful columns; the column selector shows the rest).
+4. **Changes** answers "What changed?" between this capture and the latest earlier saved
+   capture of the same host and source. Only meaningful changes are listed; Unknown means
+   absence could not be established (for example the current source failed).
+5. **Timeline** shows events by their own recorded time, with rows that have no usable event
+   time counted apart. An empty interval is a measured zero only when every in-scope source
+   with a mapped event time was read completely; otherwise it is marked as a possible gap.
+   Edge intervals are cut to the selected range. **Capture history** shows repeated
+   captures by capture time.
+6. Pin findings, rows and changes (**Pin to report**), add notes in **Report selection**, and
+   build the **Selected evidence** report under Reports. The full investigation report is
+   still available.
 
-Browser acceptance cases are in `frontend/e2e/`. Start the test-only server with the command
-in CONTRIBUTING.md. Both Chromium journeys passed against the installed wheel on GitHub
-Actions; see VALIDATION.md for the run and scope. They use a synthetic backend and fake model,
-so manual visual review and a real destination-server check remain necessary.
+**Hosts and outliers** opens from the Overview (Represented hosts, or the host chart):
+compare hosts and see values seen on only a few eligible hosts, always with the denominator
+("Seen on 1 of 4 eligible hosts"). **Where else was this seen?** in the inspector answers the
+same question for one row. Low prevalence is a reason to review, not a verdict.
+
+## Behavior to rely on
+
+* Filters, the selected finding or row, the source and the page are in the URL: Back,
+  reload and shared links keep them. **Clear filters** never clears pins, notes or review
+  decisions. Escape closes the inspector and returns focus to the row.
+* Evidence values are untrusted text: never rendered as HTML, copied exactly as saved
+  (large integers included), with automatic text direction for Persian and other scripts.
+* Loading, failed, incomplete, empty and "not ready" states are shown differently; none of
+  them is shown as a zero.
+* Times are shown in UTC with the zone written out; Settings can switch the display to the
+  browser's local time (presentation only).
+* AI explanations appear only when a model is configured, and run only when you select
+  an explicit action. Charts, filters, the inspector, comparisons and reports never call a
+  model.
+
+This is a local single-user analyst application; keep it on loopback. Remote access uses SSH
+or the optional authenticated HTTPS gateway; gateway logins share one workspace.
+
+Browser acceptance cases are in `frontend/e2e/` (start the test-only server with the command
+in CONTRIBUTING.md). They use a synthetic backend and fake model; they are not a substitute
+for checks against a real server or for usability testing with analysts.
+
+## Current chart types
+
+Composition is shown as a stacked bar with a selectable legend, comparisons as horizontal
+bars, events as a time-bucket histogram, and capture history as bars for individual saved
+captures. Pie/donut charts, connected line charts and a configurable dashboard builder
+are not implemented in this candidate.

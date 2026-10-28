@@ -102,5 +102,9 @@ ignore = ["S101", "S603", "S607", "S311", "E501", "UP017"]
 "tests/**" = ["S", "B", "BLE"]
 # Fixed VQL templates: every interpolated value goes through vql.literal() or ids.* validation.
 "src/vr_dfir/vql.py" = ["S608"]
+# Derived-index SQL: values are always bound parameters; only fixed clause text and "?" lists
+# are composed. No identifier or text from a request is ever placed in the SQL string.
+"src/vr_dfir/services/views.py" = ["S608"]
+"src/vr_dfir/services/comparisons.py" = ["S608"]
 # Temporary-directory paths and 0.0.0.0 are detection-rule inputs and synthetic evidence values.
 "src/vr_dfir/analysis/signals.py" = ["S108"]

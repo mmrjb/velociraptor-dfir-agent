@@ -9,9 +9,11 @@ An independent analyst workspace that uses Velociraptor as its backend. Browse e
 results, inspect findings beside their source rows, and export a report. Optional local
 Ollama analysis adds structured proposals; evidence-only review works without a model.
 
-**Version 0.4.0a2 · Experimental project.** Installation, existing-flow retrieval and report
-generation have been exercised on Ubuntu 24.04. Model quality, citation precision and
-performance on larger inputs are still being evaluated.
+**Version 0.5.0a1 · Experimental release candidate.** Summary-first evidence review,
+saved-capture comparisons, host prevalence, timelines and selected-evidence reports.
+The offline candidate has been installed independently on Ubuntu 24.04 and upgraded in
+the owner's lab. Model quality and analyst usability on real investigations remain under
+evaluation; the validation record separates synthetic tests from live checks.
 
 ## Why this project
 
@@ -23,7 +25,7 @@ the same investigation pipeline available through three interfaces.
   record analyst review status.
 - **CLI:** retrieve and review existing flows or hunts, import saved bundles, resume
   retrieval and export reports.
-- **MCP:** expose the shared investigation service through 16 tools.
+- **MCP:** expose the shared investigation service through 19 tools.
 - **Evidence:** preserve row references, hashes, source coverage and collection provenance.
 - **Analysis:** combine deterministic review signals with optional bounded Ollama requests.
   Saved evidence remains available when the model fails.
@@ -32,10 +34,17 @@ the same investigation pipeline available through three interfaces.
 
 ## Typical workflow
 
-1. Select an existing Velociraptor flow or hunt, or import a saved evidence bundle.
-2. Review the scope and retrieve the existing results.
-3. Examine rule signals and optional model proposals alongside their cited rows.
-4. Save analyst review decisions and export the report.
+1. **Start investigation** from an existing Velociraptor flow or hunt, or import a saved
+   evidence bundle. Existing results are read; nothing is collected.
+2. Read the **Overview**: what needs review, which hosts are represented, and how complete
+   the saved evidence is. Follow **Next step**.
+3. In **Evidence**, open a finding and its exact source rows in one inspector, and record
+   the review decision. Use **Changes** to compare with an earlier saved capture,
+   **Timeline** for event times, and **Hosts and outliers** for prevalence.
+4. Pin what matters, add notes, and export the **Selected evidence** or full report.
+
+Everything above works with AI disabled. See [docs/ui.md](docs/ui.md) and
+[docs/presentation.md](docs/presentation.md).
 
 This edition reads existing backend evidence. Collection launching, hunt creation, endpoint
 response, arbitrary VQL, notebook viewing and Master Triage are outside its scope.
@@ -44,7 +53,7 @@ There is no demo mode or bundled model. Synthetic fixtures live under `tests/` o
 ## Install from source
 
 Use Python 3.12 with venv support and Node.js 22.12+ (or a compatible version listed in
-`frontend/package.json`). The source package supports Python 3.10–3.13 in CI.
+`frontend/package.json`). CI is configured to test Python 3.10–3.13.
 
 ```bash
 git clone https://github.com/mmrjb/velociraptor-dfir-agent.git
@@ -107,14 +116,15 @@ Use the executable inside this installation's virtualenv to select the intended 
 
 ## Validation and limits
 
-[Validation record](VALIDATION.md) · [Successful CI run](https://github.com/mmrjb/velociraptor-dfir-agent/actions/runs/39107266776)
+[Validation record](VALIDATION.md) · [Current CI runs](https://github.com/mmrjb/velociraptor-dfir-agent/actions/workflows/ci.yml)
 
 | Area | Evidence so far |
 |---|---|
-| Automated checks | Python 3.10–3.13, frontend tests, installed-wheel checks and three Chromium journeys in CI |
-| Destination installation | Ubuntu 24.04, Python 3.12, loopback UI and a2 report regeneration |
-| Live backend | Existing-flow retrieval from Velociraptor 0.76.5 |
-| Live model | One small CPU-based Ollama analysis; larger requests timed out |
+| Candidate build checks | Build-host record: 235 Python tests passed / 1 skipped on Python 3.10–3.13, 37 frontend tests and eight Chromium journeys |
+| Independent package checks | Offline install on Ubuntu 24.04 / system Python 3.12.3; 117 focused Python tests passed / 2 skipped; eight journeys against the installed UI passed |
+| Destination installation | Owner-reported 0.4.0a2 → 0.5.0a1 systemd upgrade, status API and UI opening on Ubuntu 24.04 / Python 3.12.3 |
+| Live backend | 0.5.0a1 bounded API probe passed; earlier existing-flow retrieval is recorded separately |
+| Live model | Existing Ollama model reachable and available; 0.5.0a1 generation quality is not established by that probe |
 | MCP | Stdio protocol and tool checks; broader interactive-client acceptance remains open |
 
 A saved bundle can contain many more rows than the model input. Review the report's model

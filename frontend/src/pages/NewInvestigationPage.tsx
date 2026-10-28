@@ -103,24 +103,49 @@ export function NewInvestigationPage() {
     finally { setBusy(false); }
   }
 
-  if (importing) return <ImportEvidence onCancel={() => setImporting(false)} />;
-  return <>
-    <div className="page-head"><div><h1>New Investigation</h1><p className="muted">Choose evidence, review the scope, then analyze.</p></div>
-      <button className="btn" onClick={() => setImporting(true)}><Upload size={16} aria-hidden /> Import Evidence</button>
+  const choices: [string, string, string][] = [
+    ["existing_flow", "Existing collection on a host", "Results of a collection that already ran on one endpoint."],
+    ["existing_hunt", "Existing hunt", "Results already returned by a hunt across several endpoints."],
+    ["import", "Evidence bundle", "Import a saved bundle, or reopen evidence saved here."],
+  ];
+  const choose = (key: string) => {
+    if (key === "import") setImporting(true);
+    else {
+      setImporting(false);
+      setMode(key as Mode);
+      setPlan(null);
+    }
+  };
+  const chooser = (
+    <div className="choices" role="group" aria-label="Where the evidence comes from">
+      {choices.map(([key, label, text]) => {
+        const disabled = key !== "import" && !!app.status && !app.status.velociraptor.configured;
+        const selected = key === "import" ? importing : !importing && mode === key;
+        return (
+          <button key={key} className={`choice-card ${selected ? "selected" : ""}`} aria-pressed={selected} disabled={disabled} onClick={() => choose(key)}>
+            <span className="choice-title">{key === "import" ? <Upload size={16} aria-hidden /> : <FolderOpen size={16} aria-hidden />} {label}</span>
+            <span className="small muted">{disabled ? "Needs the Velociraptor API connection (Settings)." : text}</span>
+          </button>
+        );
+      })}
     </div>
-    <Banner title="Read-only AI preview">Use existing collections, hunt results, or an evidence bundle. Analysis saves a local investigation and never starts a collection.</Banner>
+  );
+  const head = (
+    <div className="page-head"><div><h1>Start investigation</h1><p className="muted">Choose where the evidence comes from. Existing results are read; nothing new is collected from endpoints.</p></div></div>
+  );
+  if (importing || (app.status && !app.status.velociraptor.configured)) return <>{head}{chooser}<ImportEvidence onCancel={app.status?.velociraptor.configured ? () => setImporting(false) : undefined} /></>;
+  return <>
+    {head}
+    {chooser}
     <ErrorBanner error={error} />
-    {!app.status ? <Spinner label="Checking configuration" /> : !app.status.velociraptor.configured ?
-      <div className="card"><EmptyState title="Start with an evidence bundle">
-        <p>Live evidence is not configured. Import a saved bundle to review it locally.</p>
-        <button className="btn primary" onClick={() => setImporting(true)}>Import Evidence</button>
-      </EmptyState></div> : <div className="stack">
+    {!app.status ? <Spinner label="Checking configuration" /> : <div className="stack">
       <div className="card stack">
         <h2>1. Select existing evidence</h2>
-        <label className="field">Evidence type<select aria-label="Evidence type" value={mode} onChange={(e) => { setMode(e.target.value as Mode); setPlan(null); }}>
-          <option value="existing_flow">Existing collection on an endpoint</option><option value="existing_hunt">Existing hunt results</option>
-        </select></label>
-        <p className="small muted">Organization: <code>{org}</code> (change it in the header)</p>
+        {app.orgs.length > 1 ? (
+          <label className="field small">Organization<select aria-label="Organization" value={org} onChange={(e) => app.setSelectedOrg(e.target.value)}>
+            {app.orgs.map((o) => <option key={o.OrgId || "root"} value={o.OrgId || "root"}>{o.Name ? `${o.Name} (${o.OrgId || "root"})` : o.OrgId || "root"}</option>)}
+          </select></label>
+        ) : <p className="small muted">Organization: <code>{org}</code></p>}
         {mode === "existing_flow" ? <>
           <div className="row"><label className="field" style={{ flex: 1 }}>Find endpoint<input aria-label="Find endpoint" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Hostname, FQDN, or client ID" onKeyDown={(e) => { if (e.key === "Enter") searchClients(); }} /></label>
             <button className="btn" onClick={searchClients} disabled={busy}>Search</button></div>
@@ -152,7 +177,7 @@ export function NewInvestigationPage() {
   </>;
 }
 
-function ImportEvidence({ onCancel }: { onCancel: () => void }) {
+function ImportEvidence({ onCancel }: { onCancel?: () => void }) {
   const navigate = useNavigate();
   const [noLlm, setNoLlm] = useState(true);
   const [bundles, setBundles] = useState<{ investigation_id: string; title: string; synthetic: boolean; rows: number }[] | null>(null);
@@ -192,15 +217,7 @@ function ImportEvidence({ onCancel }: { onCancel: () => void }) {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Import Evidence</h1>
-          <p className="muted">Open saved evidence or import a versioned evidence bundle. Nothing is collected.</p>
-        </div>
-        <button className="btn" onClick={onCancel}>
-          Back to New Investigation
-        </button>
-      </div>
+      {onCancel === undefined && <Banner tone="info" title="Velociraptor access is not configured on this server">Saved evidence and bundle import work without it. Configure the API in Settings to read existing collections and hunts.</Banner>}
       <ErrorBanner error={error} />
       <label className="check card">
         <input type="checkbox" checked={noLlm} onChange={(e) => setNoLlm(e.target.checked)} />

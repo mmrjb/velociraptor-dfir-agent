@@ -12,8 +12,16 @@
   analysis/responses/  raw model output, saved before validation (0600)
   analysis/findings.json  accepted, rejected, deterministic findings, model-input coverage
   report/report.json|md|html
+  report/selected.json|md|html  "Selected evidence" report (0.5.0a1, built on request)
+  reviews.json|.jsonl  analyst review decisions (current + append-only history)
+  selection.json|.jsonl pinned items and notes (current + append-only history)
+  derived/index-v1.sqlite        disposable presentation index (0.5.0a1)
+  derived/comparisons-v1.sqlite  saved comparison results (0.5.0a1)
   events.jsonl         bounded progress log
 ```
+
+Files added by 0.5.0a1 sit beside the existing ones; earlier versions ignore them. See
+[presentation.md](presentation.md) for the derived index, counting units and comparison rules.
 
 ## Evidence bundle (format version 1)
 

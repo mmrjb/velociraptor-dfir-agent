@@ -19,7 +19,8 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 720 } } }],
+  // VR_DFIR_E2E_CHROMIUM may name an already installed Chromium (offline build hosts).
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 720 }, launchOptions: process.env.VR_DFIR_E2E_CHROMIUM ? { executablePath: process.env.VR_DFIR_E2E_CHROMIUM } : {} } }],
   webServer: process.env.VR_DFIR_E2E_COMMAND
     ? { command: process.env.VR_DFIR_E2E_COMMAND, url: `${baseURL}/api/v1/status`, reuseExistingServer: false, timeout: 60_000 }
     : undefined,

@@ -215,3 +215,132 @@ def evaluate_row(row: dict, aliases: dict[str, list[str]] | None = None) -> RowS
     seen = set()
     ordered = [h for h in hits if not (h in seen or seen.add(h))]
     return RowSignals(ordered)
+
+
+# ----------------------------------------------------------------------- highlight spans
+
+def _get_named(row: dict, names: Iterable[str]) -> tuple[str | None, object]:
+    for name in names:
+        if "." in name:
+            head, _, tail = name.partition(".")
+            nested = row.get(head)
+            if isinstance(nested, dict) and tail in nested:
+                return name, nested[tail]
+            continue
+        if name in row:
+            return name, row[name]
+    return None, None
+
+
+def _utf16(text: str, index: int) -> int:
+    """Python code-point offset -> UTF-16 code-unit offset (what browsers index by)."""
+    return len(text[:index].encode("utf-16-le")) // 2
+
+
+def _span(rule_id: str, field: str | None, text, start: int | None = None,
+          end: int | None = None) -> dict | None:
+    if field is None:
+        return None
+    if isinstance(text, str) and start is not None and end is not None and end > start:
+        return {"rule_id": rule_id, "field": field, "start": _utf16(text, start),
+                "end": _utf16(text, end)}
+    return {"rule_id": rule_id, "field": field, "start": None, "end": None}
+
+
+def rule_spans(row: dict, rule_ids: Iterable[str],
+               aliases: dict[str, list[str]] | None = None) -> list[dict]:
+    """Field spans that made each of ``rule_ids`` match this row.
+
+    Only the requested rules are explained (the rules of findings that cite the row), so a
+    display never highlights text that no actual finding relied on. ``start``/``end`` are
+    UTF-16 offsets into the string value; ``None`` marks the whole field.
+    """
+    if not isinstance(row, dict):
+        return []
+    wanted = set(rule_ids) & (set(evaluate_row(row, aliases).rule_ids) | {"cross_client_hash"})
+    al = {**DEFAULT_ALIASES, **(aliases or {})}
+    out: list[dict | None] = []
+    exe_f, exe = _get_named(row, al["exe"])
+    exe_s = exe if isinstance(exe, str) else ""
+    cmd_f, cmd = _get_named(row, al["command_line"])
+    cmd_s = cmd if isinstance(cmd, str) else ""
+    name_f, name = _get_named(row, al["process_name"])
+    name_s = name if isinstance(name, str) else ""
+    if "exec_from_temp" in wanted and exe_s:
+        stripped = exe_s.lstrip()
+        lead = len(exe_s) - len(stripped)
+        for d in TEMP_DIRS:
+            if stripped == d or stripped.startswith(d + "/"):
+                out.append(_span("exec_from_temp", exe_f, exe_s, lead, lead + len(d)))
+                break
+        else:
+            m = WINDOWS_TEMP_RE.search(exe_s)
+            if m:
+                out.append(_span("exec_from_temp", exe_f, exe_s, m.start(), m.end()))
+    if "exec_hidden_dir" in wanted and exe_s:
+        norm = exe_s.replace("\\", "/")
+        pos = 0
+        for part in norm.split("/")[:-1]:
+            if part.startswith(".") and part not in (".", ".."):
+                out.append(_span("exec_hidden_dir", exe_f, exe_s, pos, pos + len(part)))
+                break
+            pos += len(part) + 1
+    if "deleted_executable" in wanted:
+        if exe_s.endswith(" (deleted)"):
+            out.append(_span("deleted_executable", exe_f, exe_s, len(exe_s) - 10, len(exe_s)))
+        else:
+            del_f, _ = _get_named(row, al["deleted"])
+            out.append(_span("deleted_executable", del_f, None))
+    if "kernel_thread_mimic" in wanted:
+        out.append(_span("kernel_thread_mimic", name_f, name_s, 0, len(name_s)))
+        out.append(_span("kernel_thread_mimic", exe_f, exe_s, 0, len(exe_s)))
+    if "external_established" in wanted:
+        raddr_f, raddr = _get_named(row, al["remote_address"])
+        out.append(_span("external_established", raddr_f, raddr,
+                         0, len(raddr) if isinstance(raddr, str) else None))
+        st_f, st = _get_named(row, al["conn_status"])
+        out.append(_span("external_established", st_f, st, 0, len(st) if isinstance(st, str)
+                         else None))
+    if "cron_download_exec" in wanted and cmd_s:
+        for pattern in (DOWNLOAD_TOOLS, PIPE_TO_SHELL):
+            m = pattern.search(cmd_s)
+            if m:
+                out.append(_span("cron_download_exec", cmd_f, cmd_s, m.start(), m.end()))
+    if "extra_uid0" in wanted:
+        uid_f, _ = _get_named(row, al["uid"])
+        out.append(_span("extra_uid0", uid_f, None))
+    if "home_in_temp" in wanted:
+        home_f, home = _get_named(row, al["homedir"])
+        if isinstance(home, str):
+            stripped = home.lstrip()
+            lead = len(home) - len(stripped)
+            for d in TEMP_DIRS:
+                if stripped == d or stripped.startswith(d + "/"):
+                    out.append(_span("home_in_temp", home_f, home, lead, lead + len(d)))
+                    break
+    if "suspicious_token" in wanted:
+        for field_name, text in ((exe_f, exe_s), (cmd_f, cmd_s), (name_f, name_s)):
+            if not text:
+                continue
+            for token in SUSPICIOUS_TOKENS:
+                for m in re.finditer(rf"(?<![a-z0-9]){re.escape(token)}(?![a-z0-9])", text,
+                                     re.I):
+                    out.append(_span("suspicious_token", field_name, text, m.start(), m.end()))
+    if "setuid_nonstandard" in wanted:
+        mode_f, mode = _get_named(row, al["mode"])
+        if isinstance(mode, str) and len(mode) >= 4:
+            out.append(_span("setuid_nonstandard", mode_f, mode, 3, 4))
+    if "cross_client_hash" in wanted:
+        hash_f, digest = _get_named(row, ["SHA256", "Sha256", "ExeSHA256"])
+        if isinstance(digest, str) and len(digest) == 64:
+            out.append(_span("cross_client_hash", hash_f, digest, 0, 64))
+    seen = set()
+    result = []
+    for item in out:
+        if item is None:
+            continue
+        key = (item["rule_id"], item["field"], item["start"], item["end"])
+        if key not in seen:
+            seen.add(key)
+            result.append(item)
+    return result

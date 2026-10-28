@@ -11,6 +11,11 @@ Scenarios:
 * ``review``     - baseline with review-worthy process/network/cron observations.
 * ``partial``    - partially failed collection: a failed source, a verified
                    precondition skip, an empty source, and an interrupted read.
+* ``review_later``   - a later capture of the ``review`` host with real changes (an added
+                       account, a changed shell, a stopped service, a new listener, a changed
+                       cron schedule, an upgraded package) for baseline comparison.
+* ``review_partial`` - a still later capture of that host in which Users failed, Crontab
+                       returned zero rows and NetworkConnections could not be read.
 """
 
 from __future__ import annotations
@@ -320,6 +325,44 @@ def lth_rows(kind: str) -> dict[str, list[dict]]:
     return {f"{LTH}/{k}": v for k, v in rows.items()}
 
 
+def lth_later_rows(kind: str) -> dict[str, list[dict]]:
+    """Later captures of the ``review`` host (synthetic changes for comparison tests)."""
+    rows = lth_rows("review")
+    users = [dict(u) for u in rows[f"{LTH}/Users"] if u["User"] != "backup"]
+    for u in users:
+        if u["User"] == "admin":
+            u["Shell"] = "/bin/zsh"
+    users.append({"User": "deploy", "Uid": 1001, "Gid": 1001, "Description": "",
+                  "Homedir": "/home/deploy", "Shell": "/bin/bash"})
+    rows[f"{LTH}/Users"] = list(reversed(users))  # order differs; must not create changes
+    services = [dict(x) for x in rows[f"{LTH}/Services"]]
+    for x in services:
+        if x["Name"] == "kworkerd.service":
+            x["ActiveState"], x["SubState"] = "inactive", "dead"
+    services.append({"Name": "node-exporter.service", "Description": "Metrics exporter",
+                     "LoadState": "loaded", "ActiveState": "active", "SubState": "running"})
+    rows[f"{LTH}/Services"] = services
+    net = [dict(x) for x in rows[f"{LTH}/NetworkConnections"]]
+    for x in net:
+        x["Pid"] = x["Pid"] + 7  # volatile: new PIDs after a restart are not changes
+    net.append({"Pid": 7001, "Name": "node-exporter", "Family": "IPv4", "Type": "TCP",
+                "Status": "LISTEN", "Laddr": "0.0.0.0", "Lport": "9100", "Raddr": "0.0.0.0",
+                "Rport": 0, "Timestamp": _iso(9000)})
+    rows[f"{LTH}/NetworkConnections"] = net
+    cron = [dict(x) for x in rows[f"{LTH}/Crontab"] if x["Path"] != "/etc/cron.d/certbot"]
+    for x in cron:
+        if x["Path"] == "/etc/cron.d/sysupdate":
+            x["Minute"] = "*/5"
+    rows[f"{LTH}/Crontab"] = cron
+    pkgs = [dict(x) for x in rows[f"{LTH}/DebianPackages"]]
+    pkgs[1]["Version"] = "1.1.99"
+    rows[f"{LTH}/DebianPackages"] = pkgs
+    if kind == "review_partial":
+        rows[f"{LTH}/Users"] = []
+        rows[f"{LTH}/Crontab"] = []
+    return rows
+
+
 def lth_query_stats(rows: dict[str, list[dict]], *, failed: dict[str, str] | None = None
                     ) -> list[dict]:
     stats = []
@@ -341,7 +384,7 @@ def _log(offset: int, message: str, level: str = "INFO") -> dict:
 
 
 def lth_flow_template(kind: str) -> dict:
-    rows = lth_rows(kind)
+    rows = lth_later_rows(kind) if kind.startswith("review_") else lth_rows(kind)
     failed: dict[str, str] = {}
     logs = [_log(1, f"INFO:Starting collection of {LTH}")]
     read_failures: dict[str, dict] = {}
@@ -356,6 +399,12 @@ def lth_flow_template(kind: str) -> dict:
         read_failures[f"{LTH}/NetworkConnections"] = {"at_row": 500, "remaining": 3}
         final_state = "ERROR"
         final_status = "Query Services failed (synthetic)"
+    if kind == "review_partial":
+        failed[f"{LTH}/Users"] = "users: cannot read /etc/passwd (synthetic)"
+        logs.append(_log(6, f"{LTH}/Users: users: cannot read /etc/passwd (synthetic)", "ERROR"))
+        read_failures[f"{LTH}/NetworkConnections"] = {"at_row": 0, "remaining": 5}
+        final_state = "ERROR"
+        final_status = "Query Users failed (synthetic)"
     for s in LTH_SOURCES:
         logs.append(_log(30, f"INFO:Collection {LTH}/{s} is done after 1.2s"))
     return {
@@ -431,6 +480,8 @@ def flows() -> dict[str, list[dict]]:
         ORG: [
             flow(C_WEB, "F.SYNTH0001", [LTH], lth_flow_template("ordinary"), 1),
             flow(C_APP, "F.SYNTH0002", [LTH], lth_flow_template("review"), 2),
+            flow(C_APP, "F.SYNTH0008", [LTH], lth_flow_template("review_later"), 30),
+            flow(C_APP, "F.SYNTH0009", [LTH], lth_flow_template("review_partial"), 54),
             flow(C_DB, "F.SYNTH0003", [LTH], lth_flow_template("partial"), 3),
             flow(C_DB, "F.SYNTH0004", [LTH], failed_tmpl, 4),
             flow(C_WIN, "F.SYNTH0005", ["Generic.Client.Info"], info_tmpl, 5),
@@ -533,6 +584,22 @@ SCENARIOS = {
                               "note": "prompt-injection text in CommandLine"},
                              {"source": "Processes", "row_index": 98,
                               "note": "hostile HTML markup in Name/Exe/CommandLine"}],
+    },
+    "review_later": {
+        "title": "Later capture of the review host",
+        "description": "A day later: one account added, one removed, a shell changed, a service "
+                       "stopped, a listener added, a cron schedule changed, a package upgraded.",
+        "org_id": ORG, "client_id": C_APP, "flow_id": "F.SYNTH0008", "profile": "lth-baseline",
+        "expected_observations": [], "benign_explanations": [],
+        "prohibited_conclusions": ["host is clean", "is compromised"],
+    },
+    "review_partial": {
+        "title": "Partially failed later capture of the review host",
+        "description": "Users failed, Crontab returned zero rows, NetworkConnections could not "
+                       "be read.",
+        "org_id": ORG, "client_id": C_APP, "flow_id": "F.SYNTH0009", "profile": "lth-baseline",
+        "expected_observations": [], "benign_explanations": [],
+        "prohibited_conclusions": ["host is clean"],
     },
     "partial": {
         "title": "Partially failed collection",

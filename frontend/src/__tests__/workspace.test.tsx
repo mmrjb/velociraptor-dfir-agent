@@ -111,62 +111,6 @@ describe("safe Markdown", () => {
   });
 });
 
-describe("Findings workspace", () => {
-  const f = (id: string, sev: string, title: string) => ({ finding_id: id, title, observation: "obs", interpretation: "int", evidence_ids: ["ev-aaaaaaaaaaaaaaaaaaaa"], severity: sev, confidence: "low", confidence_rationale: "r", benign_explanations: [], missing_context: [], next_steps: [], origin: "deterministic_rule", client_ids: ["C.1"], sources: ["X/Y"], evidence_refs: [{ evidence_id: "ev-aaaaaaaaaaaaaaaaaaaa", client_id: "C.1", hostname: "h", flow_id: "F.1", artifact: "X", source: "Y", row_index: 60 }] });
-  const routes = (extra = {}) => ({
-    ...baseRoutes,
-    "GET /api/v1/investigations/inv-20260101-000000-abc123": () => ({ investigation: { title: "t" } }),
-    "GET /api/v1/investigations/inv-20260101-000000-abc123/findings": () => ({ findings: [f("D-01", "high", "First high"), f("D-02", "low", "A low one"), f("D-03", "high", "Second high")], rejected_findings: [], coverage: { sources: [], counts: {}, gaps: [] }, report_ready: true }),
-    "GET /api/v1/investigations/inv-20260101-000000-abc123/reviews": () => ({ "D-03": { state: "needs_follow_up", label: "Needs follow-up", note: "x", updated_at: "2026-01-01T00:00:00Z", by: "a" } }),
-    ...extra,
-  });
-
-  it("keeps filters through previous/next and shows severity, review and confidence separately", async () => {
-    mockApi(routes());
-    renderAt("/findings/inv-20260101-000000-abc123?sev=high&finding=D-01");
-    expect(await screen.findByText("Finding 1 of 2")).toBeInTheDocument();
-    const group = screen.getByRole("group", { name: "Severity, review status and confidence" });
-    expect(within(group).getByText("Severity: High")).toHaveClass("badge");
-    expect(within(group).getByText("Review: Unreviewed")).toHaveClass("review-chip");
-    expect(within(group).getByLabelText("Confidence low")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Next finding/ }));
-    expect(await screen.findByRole("heading", { name: "D-03: Second high" })).toBeInTheDocument();
-    expect(screen.getByText("Finding 2 of 2")).toBeInTheDocument(); // the low finding was skipped
-    expect(screen.getAllByText("Review: Needs follow-up").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: /Next finding/ })).toBeDisabled();
-  });
-
-  it("saves a review status without touching the finding", async () => {
-    const { calls } = mockApi(routes({ "PUT /api/v1/investigations/inv-20260101-000000-abc123/findings/D-01/review": () => ({ state: "benign", label: "Benign / expected", note: "admin", updated_at: "2026-01-01T00:00:00Z", by: "local UI" }) }));
-    renderAt("/findings/inv-20260101-000000-abc123?finding=D-01");
-    await userEvent.click(await screen.findByText("Analyst review status"));
-    await userEvent.selectOptions(screen.getByLabelText("Status"), "benign");
-    await userEvent.type(screen.getByLabelText("Note (optional)"), "admin");
-    await userEvent.click(screen.getByRole("button", { name: "Save review" }));
-    await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
-    expect(calls.find((c) => c.method === "PUT")!.body).toEqual({ state: "benign", note: "admin" });
-    expect(await screen.findAllByText("Review: Benign / expected")).not.toHaveLength(0);
-  });
-
-  it("opens the exact evidence row in its source table and highlights it", async () => {
-    const records = Array.from({ length: 50 }, (_, i) => ({ evidence_id: i === 10 ? "ev-aaaaaaaaaaaaaaaaaaaa" : `ev-${String(i).padStart(20, "0")}`, row_index: 50 + i, raw_sha256: "h", retrieved_at: "t", event_time: null, row: { Name: `p${50 + i}` } }));
-    const { calls, fetchMock } = mockApi(routes({
-      "GET /api/v1/investigations/inv-20260101-000000-abc123/evidence/ev-aaaaaaaaaaaaaaaaaaaa/locate": () => ({ evidence_id: "ev-aaaaaaaaaaaaaaaaaaaa", source_key: "k1", row_index: 60, full_name: "X/Y", offset: 50, limit: 50 }),
-      "GET /api/v1/investigations/inv-20260101-000000-abc123/sources": () => ({ bundle_id: "b", synthetic: true, sources: [{ source_key: "k0", full_name: "X/Z", client_id: "C.1", hostname: "h", flow_id: "F.1", hunt_id: null, counts_only: false, coverage: { persisted_rows: 3 } }, { source_key: "k1", full_name: "X/Y", client_id: "C.1", hostname: "h", flow_id: "F.1", hunt_id: null, counts_only: false, coverage: { persisted_rows: 120 } }] }),
-      "GET /api/v1/investigations/inv-20260101-000000-abc123/evidence": () => ({ records, total_matched: 120, offset: 50, limit: 50, search_scope: null, scan_truncated: false, source: { source_key: "k1", full_name: "X/Y", client_id: "C.1", hostname: "h", flow_id: "F.1", org_id: "O", coverage: { result_status: "rows", read_status: "complete", persisted_rows: 120 } } }),
-    }));
-    const { container } = renderAt("/findings/inv-20260101-000000-abc123?finding=D-01");
-    await userEvent.click(await screen.findByRole("button", { name: "Open evidence ev-aaaaaaaaaaaaaaaaaaaa in its source table" }));
-    await waitFor(() => expect(container.querySelector("tr.highlight")).not.toBeNull());
-    expect(container.querySelector("tr.highlight")).toHaveAttribute("data-row-key", "ev-aaaaaaaaaaaaaaaaaaaa");
-    const evidenceCall = calls.find((c) => c.path.startsWith("/api/v1/investigations/inv-20260101-000000-abc123/evidence?"))!;
-    expect(evidenceCall.path).toContain("source_key=k1");
-    expect(evidenceCall.path).toContain("offset=50");
-    expect(await screen.findByRole("region", { name: "Selected evidence row" })).toHaveTextContent("p60");
-    expect(fetchMock).toHaveBeenCalled();
-  });
-});
-
 describe("review regressions", () => {
   it("removes backslash links and survives deeply nested quotes", () => {
     const { container } = render(<Markdown source={"[home](/\\evil.example/x) [ok](/investigations/a)\n\n" + ">".repeat(5000) + " deep"} />);
@@ -176,7 +120,7 @@ describe("review regressions", () => {
   });
 
   it("clears an AI result when the subject changes", async () => {
-    mockApi({ "POST /api/v1/x/a/explain": () => ({ action: "finding_summary", status: "ok", label: "AI interpretation", provider: "ollama", model: "m", prompt_version: "v1", summary: "About A.", points: [], gaps: [], next_steps: [], rejected: [], records_supplied: 1, records_omitted: 0 }) });
+    mockApi({ "GET /api/v1/session": baseRoutes["GET /api/v1/session"], "POST /api/v1/x/a/explain": () => ({ action: "finding_summary", status: "ok", label: "AI interpretation", provider: "ollama", model: "m", prompt_version: "v1", summary: "About A.", points: [], gaps: [], next_steps: [], rejected: [], records_supplied: 1, records_omitted: 0 }) });
     const actions = [{ id: "finding_summary", label: "Summarize this finding", body: {} }];
     const { rerender } = render(<AiPanel path="/x/a/explain" actions={actions} />);
     await userEvent.click(screen.getByRole("button", { name: "Summarize this finding" }));

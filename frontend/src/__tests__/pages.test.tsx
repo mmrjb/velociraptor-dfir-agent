@@ -16,7 +16,7 @@ function renderAt(path: string) {
   );
 }
 
-const finding = {
+export const finding = {
   finding_id: "M-001", title: "Process executable in a temporary directory", observation: "kworkerd runs from /tmp/.cache",
   interpretation: "Review signal.", evidence_ids: ["ev-aaaaaaaaaaaaaaaaaaaa", "ev-bbbbbbbbbbbbbbbbbbbb"], severity: "medium", confidence: "low",
   confidence_rationale: "r", benign_explanations: ["Admin test binary"], missing_context: ["Parent process"], next_steps: ["Hash it"],
@@ -30,83 +30,34 @@ const finding = {
 const notConfigured = () => ({ ...(baseRoutes["GET /api/v1/status"]() as object), velociraptor: { configured: false, default_org: "root", last_test: null, synthetic: false }, setup_hint: "set it" });
 
 describe("Investigations (first launch)", () => {
-  it("offers New Investigation and Import Evidence with an empty history, and no demo", async () => {
+  it("offers one primary action with an empty history, three main destinations and no demo", async () => {
     mockApi({ ...baseRoutes, "GET /api/v1/investigations": () => [] });
     renderAt("/investigations");
     expect(await screen.findByText("No investigations yet.")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /New Investigation/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: /Import Evidence/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Start investigation/ })).toHaveLength(1);
     expect(screen.queryByText(/demo/i)).toBeNull();
-    expect(screen.getByRole("navigation")).toHaveTextContent("Findings & Evidence");
-    expect(within(screen.getByRole("navigation")).getAllByRole("link")).toHaveLength(3);
-    expect(within(screen.getByRole("navigation")).getAllByRole("link")[0]).toHaveTextContent("Investigations");
+    const nav = within(screen.getByRole("complementary", { name: "Primary" })).getAllByRole("link");
+    expect(nav.map((a) => a.textContent)).toEqual(["Investigations", "Reports", "Settings"]);
   });
 
-  it("shows a configuration hint when Velociraptor is not configured", async () => {
+  it("keeps saved evidence and import available when Velociraptor is not configured", async () => {
     mockApi({ ...baseRoutes, "GET /api/v1/status": notConfigured, "GET /api/v1/investigations": () => [] });
     renderAt("/investigations");
-    expect(await screen.findByText(/Velociraptor access is not configured on this server/)).toBeInTheDocument();
-    expect(screen.getByText(/Velociraptor: Not configured/)).toBeInTheDocument();
+    expect(await screen.findByText(/Velociraptor is not connected/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Import evidence" })).toHaveAttribute("href", "/investigations/new?mode=import");
+  });
+
+  it("shows report readiness and review progress instead of a zero", async () => {
+    mockApi({ ...baseRoutes, "GET /api/v1/investigations": () => [
+      { investigation_id: "inv-20260101-000000-abc123", title: "Not analyzed", mode: "bundle", scope: { org_id: "O" }, outcome: "evidence_only", phase: "report_ready", counts: { findings: 0 }, report_ready: false, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" },
+      { investigation_id: "inv-20260101-000000-abc124", title: "Reviewed", mode: "existing_flow", scope: { org_id: "O", hostname: "web" }, outcome: "complete", phase: "report_ready", counts: { findings: 4 }, report_ready: true, reviews_decided: 1, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" },
+    ] });
+    renderAt("/investigations");
+    expect(await screen.findByText("findings not ready")).toBeInTheDocument();
+    expect(screen.getByText("1 of 4 reviewed")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue Reviewed" })).toBeInTheDocument();
   });
 });
-
-describe("Findings & Evidence", () => {
-  it("links a finding to its exact evidence row and flags invalid citations", async () => {
-    mockApi({
-      ...baseRoutes,
-      "GET /api/v1/investigations/inv-20260101-000000-abc123/findings": () => ({
-        findings: [finding], rejected_findings: [{ reasons: ["cites evidence IDs that do not exist"], request_id: "r", title: "bogus" }],
-        coverage: { sources: [], counts: { rows: 1 }, gaps: ["X: counts only"] }, report_ready: true, synthetic: true,
-        provider: { name: "fake", model: "fake-test-model", fake: true }, citation_note: "Citation validation confirms ...",
-      }),
-      "GET /api/v1/investigations/inv-20260101-000000-abc123": () => ({ investigation: { title: "Synthetic review" } }),
-      "GET /api/v1/investigations/inv-20260101-000000-abc123/evidence/ev-aaaaaaaaaaaaaaaaaaaa": () => ({
-        evidence_id: "ev-aaaaaaaaaaaaaaaaaaaa", org_id: "OSYNTHLAB", client_id: "C.SYNTH0000000002", hostname: "lab-app-02", flow_id: "F.SYNTH0002",
-        hunt_id: null, artifact: "LTH.SystemBaseline", source: "Processes", full_name: "LTH.SystemBaseline/Processes", source_key: "k",
-        collected_at: null, retrieved_at: "2026-01-01T00:00:00Z", event_time: null, row_index: 141, raw_sha256: "abc", file: "f", line: 142,
-        synthetic: true, investigation_id: "inv", row: { Name: "<script>alert(1)</script>", IsDeleted: false, Pid: 0, Note: "" },
-      }),
-    });
-    const { container } = renderAt("/findings/inv-20260101-000000-abc123?finding=M-001");
-    expect(await screen.findByRole("heading", { name: /M-001: Process executable/ })).toBeInTheDocument();
-    expect(screen.getByText("Admin test binary")).toBeInTheDocument();
-    expect(screen.getByText(/citation could not be resolved/)).toBeInTheDocument();
-    expect(screen.getByText(/1 rejected model proposal/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Open evidence ev-aaaaaaaaaaaaaaaaaaaa" }));
-    expect(await screen.findByText(/zero-based position/)).toBeInTheDocument();
-    expect(screen.getAllByText("<script>alert(1)</script>").length).toBeGreaterThan(0);
-    expect(container.querySelector("script")).toBeNull();
-    expect(screen.getAllByText("false").length).toBeGreaterThan(0);
-  });
-
-  it("moves between findings in the current filter", async () => {
-    const second = { ...finding, finding_id: "D-001", title: "Second finding", origin: "deterministic_rule" };
-    mockApi({
-      ...baseRoutes,
-      "GET /api/v1/investigations/inv-20260101-000000-abc123/findings": () => ({ findings: [finding, second], rejected_findings: [], coverage: { sources: [], counts: {}, gaps: [] }, report_ready: true }),
-      "GET /api/v1/investigations/inv-20260101-000000-abc123": () => ({ investigation: { title: "t" } }),
-    });
-    renderAt("/findings/inv-20260101-000000-abc123?finding=M-001");
-    expect(await screen.findByText("Finding 1 of 2")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Previous finding" })).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: "Next finding" }));
-    expect(await screen.findByRole("heading", { name: /D-001: Second finding/ })).toBeInTheDocument();
-    expect(screen.getByText("Finding 2 of 2")).toBeInTheDocument();
-  });
-
-  it("shows a missing citation as an explicit error, not a nearby row", async () => {
-    mockApi({
-      ...baseRoutes,
-      "GET /api/v1/investigations/inv-20260101-000000-abc123/findings": () => ({ findings: [finding], rejected_findings: [], coverage: { sources: [], counts: {}, gaps: [] }, report_ready: true }),
-      "GET /api/v1/investigations/inv-20260101-000000-abc123": () => ({ investigation: { title: "t" } }),
-      "GET /api/v1/investigations/inv-20260101-000000-abc123/evidence/ev-cccccccccccccccccccc": () => ({ __status: 404, __error: { code: "not_found", message: "Evidence ID ev-cccccccccccccccccccc does not exist in this bundle." } }),
-    });
-    renderAt("/findings/inv-20260101-000000-abc123?finding=M-001&evidence=ev-cccccccccccccccccccc");
-    expect(await screen.findByText(/Invalid or missing citation/)).toBeInTheDocument();
-    expect(screen.getByText(/No nearby row is substituted/)).toBeInTheDocument();
-  });
-});
-
 
 const flowPlan = (launches = 0) => ({
   plan: { mode: "existing_flow", org_id: "OSYNTHLAB", collections: [],

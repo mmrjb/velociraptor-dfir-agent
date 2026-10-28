@@ -62,4 +62,6 @@ def test_mcp_exposes_only_the_reviewed_read_and_local_analysis_tools(settings):
         "analyze_existing_flow", "analyze_existing_hunt", "get_investigation",
         "list_investigations", "resume_investigation", "retry_analysis", "get_report",
         "get_evidence",
+        # 0.5.0a1: read-only summary views over saved evidence.
+        "get_overview", "compare_captures", "where_else_seen",
     }

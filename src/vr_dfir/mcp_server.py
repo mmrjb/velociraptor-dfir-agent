@@ -393,10 +393,60 @@ def t_get_evidence(ctx: ToolContext, investigation_id: str, evidence_id: str) ->
         return _err(exc)
 
 
+def _indexed(ctx: ToolContext, investigation_id: str):
+    from vr_dfir.services.derived import IndexManager
+    inv = ctx.investigations.store.get(investigation_id)
+    return inv, IndexManager(ctx.settings).require(inv, timeout=120)
+
+
+def t_get_overview(ctx: ToolContext, investigation_id: str) -> str:
+    from vr_dfir.services import views
+    try:
+        inv, idx = _indexed(ctx, investigation_id)
+        return ok(views.overview(inv, idx, stale_days=ctx.settings.stale_after_days))
+    except Exception as exc:  # noqa: BLE001
+        return _err(exc)
+
+
+def t_compare_captures(ctx: ToolContext, investigation_id: str, source_key: str,
+                       baseline_investigation_id: str = "", baseline_source_key: str = "",
+                       include_unchanged: bool = False, limit: int = 100) -> str:
+    from vr_dfir.services import captures, comparisons
+    try:
+        store = ctx.investigations.store
+        inv = store.get(investigation_id)
+        current = captures.find(store, ctx.settings, inv.id, source_key)
+        if current is None:
+            return fail("This source is not in the investigation's saved evidence.")
+        if baseline_investigation_id:
+            baseline = captures.find(store, ctx.settings, baseline_investigation_id,
+                                     baseline_source_key or source_key)
+        else:
+            older = captures.baselines(store, ctx.settings, current)
+            baseline = older[0] if older else None
+        if baseline is None:
+            return fail("No earlier compatible saved capture of this source exists.")
+        cid = comparisons.run(store, ctx.settings, current, baseline)
+        page = comparisons.items(inv, cid, show_unchanged=include_unchanged,
+                                 limit=max(1, min(int(limit), 200)))
+        return ok({**comparisons.load(inv, cid), **page})
+    except Exception as exc:  # noqa: BLE001
+        return _err(exc)
+
+
+def t_where_else_seen(ctx: ToolContext, investigation_id: str, evidence_id: str) -> str:
+    from vr_dfir.services import cohort
+    try:
+        inv, idx = _indexed(ctx, investigation_id)
+        return ok(cohort.where_else(inv, idx, evidence_id, scope="investigation"))
+    except Exception as exc:  # noqa: BLE001
+        return _err(exc)
+
+
 # ------------------------------------------------------------------------ registration
 
 LEGACY_TOOLS = ["list_orgs", "client_info", "list_clients", "get_collection_results", "get_hunt_results_tool"]
-NEW_TOOLS = ["flow_status", "list_result_sources", "get_result_page", "analyze_existing_flow", "analyze_existing_hunt", "get_investigation", "list_investigations", "resume_investigation", "retry_analysis", "get_report", "get_evidence"]
+NEW_TOOLS = ["flow_status", "list_result_sources", "get_result_page", "analyze_existing_flow", "analyze_existing_hunt", "get_investigation", "list_investigations", "resume_investigation", "retry_analysis", "get_report", "get_evidence", "get_overview", "compare_captures", "where_else_seen"]
 
 
 def _server_class():
@@ -519,6 +569,27 @@ def build_server(ctx: ToolContext | None = None):
     async def get_evidence(investigation_id: str, evidence_id: str) -> str:
         """Resolve an evidence ID to its exact persisted row with provenance."""
         return await run(t_get_evidence, investigation_id, evidence_id)
+
+    @server.tool()
+    async def get_overview(investigation_id: str) -> str:
+        """Summary of a saved investigation: needs-review findings, represented hosts, source
+        coverage, chart aggregates over all saved rows, and the next suggested step."""
+        return await run(t_get_overview, investigation_id)
+
+    @server.tool()
+    async def compare_captures(investigation_id: str, source_key: str,
+                               baseline_investigation_id: str = "", baseline_source_key: str = "",
+                               include_unchanged: bool = False, limit: int = 100) -> str:
+        """What changed between a saved source and an earlier saved capture of the same host
+        and source (default: the latest earlier one). Reads saved evidence only."""
+        return await run(t_compare_captures, investigation_id, source_key,
+                         baseline_investigation_id, baseline_source_key, include_unchanged, limit)
+
+    @server.tool()
+    async def where_else_seen(investigation_id: str, evidence_id: str) -> str:
+        """Where else the values of one saved row were seen among the investigation's hosts,
+        with eligible-host denominators."""
+        return await run(t_where_else_seen, investigation_id, evidence_id)
 
     return server
 

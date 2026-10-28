@@ -1,4 +1,4 @@
-// Shared table for evidence rows, notebook result tables, and dashboard drill-downs.
+// Shared table for evidence rows, coverage lists and drill-downs.
 //
 // * Server-side paging only: the table renders the current page and asks for another offset;
 //   it never loads a whole hunt or result table into the browser.
@@ -6,7 +6,8 @@
 //   (wrapped in try/catch; the table works without storage).
 // * Sticky header (and optional sticky first column), horizontal scrolling inside the table.
 // * Long values are never tooltip-only: every truncated cell has a "show full value" button
-//   (see ValueCell) with an exact copy action.
+//   (see ValueCell) with an exact copy action. Evidence tables pass onCellExpand so the button
+//   opens the row in the single inspector at that field instead of a separate dialog.
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { Columns3, WrapText } from "lucide-react";
 import { Pager } from "./ui";
@@ -43,8 +44,10 @@ export interface DataTableProps<R> {
   toolbarExtra?: ReactNode;
   maxHeight?: string;
   totalNote?: string;
-  /** For server tables without a total (e.g. notebook results): whether another page exists. */
+  /** For server tables without a total: whether another page exists. */
   hasMore?: boolean;
+  /** Open the row's full value in the inspector (instead of a per-field dialog). */
+  onCellExpand?: (row: R, key: string) => void;
 }
 
 interface Prefs {
@@ -100,7 +103,7 @@ function cellValue<R>(col: ColumnDef<R>, row: R): unknown {
 }
 
 export function DataTable<R>(props: DataTableProps<R>) {
-  const { id, label, rows, columns, rowKey, total, offset = 0, limit, onPageChange, highlightKey, selectedKey, onRowClick, rowLabel, rowActions, empty, toolbarExtra, maxHeight, totalNote, hasMore } = props;
+  const { id, label, rows, columns, rowKey, total, offset = 0, limit, onPageChange, highlightKey, selectedKey, onRowClick, rowLabel, rowActions, empty, toolbarExtra, maxHeight, totalNote, hasMore, onCellExpand } = props;
   const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs(id));
   const scrollRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDetailsElement>(null);
@@ -228,7 +231,7 @@ export function DataTable<R>(props: DataTableProps<R>) {
                   >
                     {visible.map((c) => (
                       <td key={c.key} className={`${c.sticky ? "sticky-col" : ""} k-${c.kind ?? "text"} colw-${c.kind ?? "text"}`}>
-                        {c.render ? c.render(row) : <ValueCell value={cellValue(c, row)} label={c.label ?? c.key} />}
+                        {c.render ? c.render(row) : <ValueCell value={cellValue(c, row)} label={c.label ?? c.key} onExpand={onCellExpand && !c.key.startsWith("__") ? () => onCellExpand(row, c.key) : undefined} />}
                       </td>
                     ))}
                     {rowActions && <td className="nowrap">{rowActions(row)}</td>}

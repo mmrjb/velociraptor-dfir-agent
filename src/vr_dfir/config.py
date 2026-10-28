@@ -248,6 +248,11 @@ class Settings:
     env_file: str = ""
     workspace_config: str = ""
     model: ModelSettings = field(default_factory=ModelSettings)
+    # Presentation: operator source mappings (JSON file), internal network ranges for display
+    # labels, and the capture age after which a source is shown as stale.
+    source_mappings_path: str = ""
+    internal_networks: str = ""
+    stale_after_days: int = 7
 
     def public_view(self) -> dict:
         """Configuration status safe to show in a browser or terminal (no secrets)."""
@@ -280,6 +285,11 @@ class Settings:
             "workspace_config": self.workspace_config or None,
             "dangerous_tools_enabled": self.dangerous_tools,
             "env_file": self.env_file or None,
+            "presentation": {
+                "source_mappings_path": self.source_mappings_path or None,
+                "internal_networks": self.internal_networks or None,
+                "stale_after_days": self.stale_after_days,
+            },
         }
 
 
@@ -348,7 +358,19 @@ def load_settings(environ: dict | None = None, *, load_dotenv: bool = True) -> S
         env_file=str(env.get("VELOCIRAPTOR_ENV_FILE", "")).strip(),
         workspace_config="",
         model=model,
+        source_mappings_path=str(Path(str(env["VR_DFIR_SOURCE_MAPPINGS"]).strip()).expanduser())
+        if str(env.get("VR_DFIR_SOURCE_MAPPINGS", "")).strip() else "",
+        internal_networks=_networks(env.get("VR_DFIR_INTERNAL_NETWORKS", "")),
+        stale_after_days=_int(env, "VR_DFIR_STALE_AFTER_DAYS", 7, 1, 3650),
     )
+
+
+def _networks(value) -> str:
+    """Validated comma-separated CIDR list (display labels only)."""
+    from vr_dfir.analysis.networks import parse_internal
+    text = str(value or "").strip()
+    parse_internal(text)
+    return text
 
 
 # Keys that must never be copied into logs, model requests, or browser responses.

@@ -1,3 +1,5 @@
+import { formatInstant, getDisplayZone } from "./time";
+
 export type Tone = "ok" | "warn" | "bad" | "info" | "neutral" | "synthetic" | "teal";
 
 // Every status colour is paired with a text label.
@@ -70,11 +72,12 @@ export const ORIGIN_LABELS: Record<string, string> = {
   analyst_input: "Analyst input",
 };
 
+/** Readable date and time with an explicit zone (the viewer's display zone, UTC by default). */
 export function formatTime(value: string | null | undefined): string {
   if (!value) return "-";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString(undefined, { year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  return formatInstant(value, getDisplayZone(), false);
 }
 
 export function elapsed(from: string | null | undefined, to?: string | null): string {

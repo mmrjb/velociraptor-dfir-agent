@@ -18,7 +18,19 @@ vr-dfir investigations show inv-20260101-000000-abc123
 vr-dfir findings list inv-20260101-000000-abc123
 vr-dfir evidence sources inv-20260101-000000-abc123
 vr-dfir report --id inv-20260101-000000-abc123 --format html --output /private/report.html
+vr-dfir overview inv-20260101-000000-abc123
+vr-dfir timeline inv-20260101-000000-abc123
+vr-dfir changes sources inv-20260101-000000-abc123
+vr-dfir changes compare inv-20260101-000000-abc123 --source 'ORG/CLIENT/FLOW/Linux.Sys.Users/'
+vr-dfir hosts inv-20260101-000000-abc123 --scope organization
+vr-dfir where-else inv-20260101-000000-abc123 ev-0123456789abcdef0123
+vr-dfir pins add inv-20260101-000000-abc123 --kind finding --ref R-001 --note "checked"
+vr-dfir report --id inv-20260101-000000-abc123 --scope selected --format html --output sel.html
 ```
+
+`overview`, `timeline`, `changes`, `hosts` and `where-else` read saved evidence through the
+same services as the UI (building the derived index on first use). `pins` edits the report
+selection; `report --scope selected` builds the Selected evidence report.
 
 Use actual IDs from your environment. `resume --id <ID>` continues local retrieval;
 `retry-analysis --id <ID>` repeats analysis over saved evidence. Neither starts collection.

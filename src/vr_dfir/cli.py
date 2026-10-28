@@ -691,19 +691,33 @@ def cmd_report(ctx: Context, out: Output) -> int:
             raise NotFoundError(f"{path} is not an investigation run folder.")
         inv = Investigation(path)
         svc = ctx.service(str(path.parent))
-    report = svc.rebuild_report(inv.id)
+    if a.scope == "selected":
+        from vr_dfir.cli_views import write_selected_report
+        selected = write_selected_report(inv, svc.store)
+    else:
+        report = svc.rebuild_report(inv.id)
+    base = "report" if a.scope == "full" else "selected"
     target = "-" if a.stdout else a.output
     if target:
         if a.format == "all":
             raise ValidationError("--output and --stdout need a single --format (md, json, html).")
-        content = (inv.report_dir / f"report.{a.format}").read_text(encoding="utf-8")
+        content = (inv.report_dir / f"{base}.{a.format}").read_text(encoding="utf-8")
         if target == "-":
             sys.stdout.write(content if content.endswith("\n") else content + "\n")
         else:
             Path(target).write_text(content, encoding="utf-8")
             out.note(f"Wrote {a.format} report to {target}")
     formats = ["json", "md", "html"] if a.format == "all" else [a.format]
-    files = {f: str(inv.report_dir / f"report.{f}") for f in formats}
+    files = {f: str(inv.report_dir / f"{base}.{f}") for f in formats}
+    if a.scope == "selected":
+        if target != "-":
+            out.result({"investigation_id": inv.id, "report_files": files,
+                        "report_scope": "selected_evidence",
+                        "items": selected["selection"]["items"],
+                        "limitations": selected["coverage"]["limitations"]},
+                       "\n".join(f"{k}: {v}" for k, v in files.items())
+                       + f"\nSelected evidence: {selected['selection']['items']} item(s)")
+        return EXIT_OK
     status = report.get("status") or {}
     if target != "-":
         out.result({"investigation_id": inv.id, "report_files": files, "status": status},
@@ -934,7 +948,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--format", choices=["json", "md", "html", "all"], default="all")
     p.add_argument("--output", metavar="FILE", help="write one format to FILE ('-' for stdout)")
     p.add_argument("--stdout", action="store_true", help="same as --output -")
+    p.add_argument("--scope", choices=["full", "selected"], default="full",
+                   help="full investigation (default) or the pinned selected evidence")
     _runs(p)
+    from vr_dfir.cli_views import add_view_parsers
+    add_view_parsers(sub, _add, _runs, _group)
 
 
     p = _add(sub, "ui", "local analyst UI (loopback only, default 127.0.0.1:8766)", cmd_ui)

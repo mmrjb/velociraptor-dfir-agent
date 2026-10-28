@@ -63,9 +63,17 @@ Rules:
    stated in the DETERMINISTIC RESULT."""
 
 ACTION_TASKS = {
-    "finding_summary": "Summarize this finding and its cited evidence for a reviewer: what is "
-                       "observed, plausible benign explanations, missing context, and next "
+    "finding_summary": "Explain why this finding deserves review: what is observed in the "
+                       "records, plausible benign explanations, missing context, and next "
                        "verification steps, each grounded in records.",
+    "next_question": "Suggest the next investigation questions an analyst could ask to confirm "
+                     "or rule out this observation, using only what the records show. Put each "
+                     "question in next_steps, cite the records it builds on, and state in gaps "
+                     "what the records cannot answer.",
+    "changes_summary": "Summarize these changes between two saved captures of one host: what "
+                       "was added, removed or modified, and which entries are unknown because "
+                       "absence could not be established. Each point must cite the change "
+                       "records it describes. Do not speculate about causes beyond the records.",
 }
 
 

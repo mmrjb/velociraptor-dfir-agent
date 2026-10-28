@@ -15,6 +15,7 @@ class _Body(BaseModel):
 
 class ExplainRequest(_Body):
     refresh: bool = False
+    action: str = Field(default="finding_summary", pattern="^(finding_summary|next_question)$")
 
 class ReviewRequest(_Body):
     state: str = Field(max_length=40)
@@ -44,7 +45,8 @@ def register(app: FastAPI, st) -> None:
     def explain_finding_route(inv_id: str, finding_id: str, body: ExplainRequest):
         from vr_dfir.services.explanations import explain_finding
         _, inv = st.find_investigation(inv_id)
-        return _ok(explain_finding(inv, st.runtime, finding_id, refresh=body.refresh))
+        return _ok(explain_finding(inv, st.runtime, finding_id, refresh=body.refresh,
+                                   action=body.action))
 
     @app.get("/api/v1/investigations/{inv_id}/evidence/{evidence_id}/locate")
     def locate_evidence(inv_id: str, evidence_id: str, limit: int = 50):

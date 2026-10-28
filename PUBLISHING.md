@@ -1,6 +1,6 @@
 # Publication and release status
 
-The repository is public. Version 0.4.0a2 is experimental software for reviewing existing
+The repository is public. Version 0.5.0a1 is experimental software for reviewing existing
 Velociraptor evidence through GUI, CLI and MCP interfaces.
 
 ## Licensing

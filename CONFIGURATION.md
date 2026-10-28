@@ -23,6 +23,13 @@ VR_DFIR_MODEL_TEMPERATURE=0
 VR_DFIR_MAX_MODEL_INPUT_CHARS=12000
 VR_DFIR_MAX_MODEL_REQUESTS=6
 VR_DFIR_IMPORT_MAX_BYTES=52428800
+# Optional presentation settings (0.5.0a1):
+# JSON file mapping custom artifacts to presentation domains (see docs/presentation.md).
+VR_DFIR_SOURCE_MAPPINGS=
+# Comma-separated CIDR ranges labelled "Configured internal network" (display only).
+VR_DFIR_INTERNAL_NETWORKS=
+# Capture age after which a source is shown as older than N days (default 7).
+VR_DFIR_STALE_AFTER_DAYS=7
 ```
 
 To enable AI set the provider to `ollama` and `OLLAMA_MODEL` to a model already installed

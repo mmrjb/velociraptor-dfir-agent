@@ -465,8 +465,15 @@ def create_app(settings: Settings, *, runtime: Runtime | None = None) -> FastAPI
             items += svc.store.list(search=q or None, status=status or None,
                                     limit=max(1, min(limit, 500)))
         items.sort(key=lambda s: s.get("created_at") or "", reverse=True)
+        from vr_dfir.services.reviews import load_reviews
         for it in items:
             it["job_active"] = st.jobs.is_active(it["investigation_id"])
+            inv_path = st.service.store.path_for(it["investigation_id"])
+            it["report_ready"] = (inv_path / "report" / "report.json").is_file()
+            decided = sum(1 for r in load_reviews(inv_path).values()
+                          if (r or {}).get("state") in ("confirmed", "benign"))
+            total = (it.get("counts") or {}).get("findings")
+            it["reviews_decided"] = min(decided, total) if isinstance(total, int) else decided
         return _ok(items[:limit])
 
     @app.get("/api/v1/investigations/{inv_id}")
@@ -574,17 +581,21 @@ def create_app(settings: Settings, *, runtime: Runtime | None = None) -> FastAPI
         return _ok(items)
 
     @app.get("/api/v1/investigations/{inv_id}/report")
-    def report(inv_id: str, format: str = "json", download: bool = False):
+    def report(inv_id: str, format: str = "json", download: bool = False, scope: str = "full"):
         _, inv = st.find_investigation(inv_id)
-        names = {"json": ("report.json", "application/json"),
-                 "md": ("report.md", "text/markdown; charset=utf-8"),
-                 "html": ("report.html", "text/html; charset=utf-8")}
+        if scope not in ("full", "selected"):
+            raise ValidationError("scope must be full or selected")
+        base = "report" if scope == "full" else "selected"
+        names = {"json": (f"{base}.json", "application/json"),
+                 "md": (f"{base}.md", "text/markdown; charset=utf-8"),
+                 "html": (f"{base}.html", "text/html; charset=utf-8")}
         if format not in names:
             raise ValidationError("format must be json, md, or html")
         fname, media = names[format]
         path = inv.report_dir / fname
         if not path.is_file():
-            raise NotFoundError("The report has not been generated yet.")
+            raise NotFoundError("The report has not been generated yet." if scope == "full" else
+                                "The selected-evidence report has not been built yet.")
         # The UI previews the HTML report in a sandboxed same-origin iframe; nothing else may
         # frame it and it can never run scripts.
         headers = {"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; font-src data:; "
@@ -645,8 +656,10 @@ def create_app(settings: Settings, *, runtime: Runtime | None = None) -> FastAPI
         _start_job(svc, inv.id)
         return _ok({"investigation_id": inv.id, "synthetic": synthetic}, status=201)
 
-    from vr_dfir.web import review_api
+    from vr_dfir.web import case_api, review_api, views_api
     review_api.register(app, st)
+    views_api.register(app, st)
+    case_api.register(app, st)
 
     # ------------------------------------------------------------------- static frontend
 
